@@ -45,7 +45,8 @@ instance : liftable id id :=
 , up_down := by intros; simp
 , down_up := by intros; simp }
 
-def state_t.liftable' {s s' m m'} [functor m'] [functor m] [is_lawful_functor m'] [is_lawful_functor m]
+/-- for specific state types, this function helps to create a liftable instance -/
+def state_t.liftable' {s s' m m'}
   [liftable m m']
   (F : s ≃ s') :
   liftable (state_t s m) (state_t s' m') :=
@@ -54,7 +55,7 @@ def state_t.liftable' {s s' m m'} [functor m'] [functor m] [is_lawful_functor m'
 , up_down := by { rintros α β G ⟨ f ⟩, simp! }
 , down_up := by { rintros α β G ⟨ g ⟩, simp! [map_map,function.comp] } }
 
-instance {s m m'} [functor m'] [functor m] [is_lawful_functor m'] [is_lawful_functor m]
+instance {s m m'}
   [liftable m m'] :
   liftable (state_t s m) (state_t (ulift s) m') :=
 state_t.liftable' equiv.ulift.symm

@@ -1156,6 +1156,8 @@ do let (p, x) := p,
    intro x,
    intro h
 
+/-- `unfold_locals x y z`, with `x`, `y`, `z` being local definitions,
+unfolds them in the goal. -/
 meta def unfold_locals (ns : parse ident*) : tactic unit := do
 ns.for_each $ λ n, do
   e ← resolve_name n >>= to_expr,

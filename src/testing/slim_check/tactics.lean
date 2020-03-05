@@ -26,7 +26,7 @@ match r with
 | (interaction_monad.result.success a s) := r
 end
 
-meta def applye (e : pexpr) : tactic unit := do
+private meta def applye (e : pexpr) : tactic unit := do
 () <$ (to_expr e >>= tactic.apply)
 
 meta def synth_def_name : tactic unit :=
@@ -105,6 +105,11 @@ end)
 
 open slim_check.test_result nat
 
+namespace interactive
+
+/-- in a goal of the shape `⊢ p` where `p` is testable, try to find
+counter-examples to falsify `p`. If one is found, an assignment to the
+local variables is printed. Otherwise, the goal is `admit`-ed.  -/
 meta def slim_check (bound : ℕ := 100) : tactic unit :=
 do unfreeze_local_instances,
    n ← revert_all,
