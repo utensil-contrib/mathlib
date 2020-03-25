@@ -1524,3 +1524,7 @@ improvements:
 - You can rename multiple hypotheses at once.
 - Renaming a hypothesis always preserves its location in the context (whereas
   `rename` may reorder hypotheses).
+
+## slim_check
+
+`slim_check` is a ra

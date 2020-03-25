@@ -106,6 +106,12 @@ lemma ne_comm {α} {a b : α} : a ≠ b ↔ b ≠ a := ⟨ne.symm, ne.symm⟩
   (∀ {c}, a = c ↔ b = c) ↔ (a = b) :=
 ⟨λ h, by rw h, λ h a, by rw h⟩
 
+/-- Gadget to help port instances from definitionally equal types -/
+def infer_instance_as (cl : Sort*) [I : cl] : cl := I
+
+@[class]
+def fact (p : Prop) := p
+
 end miscellany
 
 /-!
