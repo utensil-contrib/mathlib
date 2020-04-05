@@ -1,11 +1,12 @@
 /-
 Copyright (c) 2018 Jan-David Salchow. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
-Authors: Jan-David Salchow
+Authors: Jan-David Salchow, Patrick Massot
 -/
 
 import topology.basic
 import topology.bases
+import topology.subset_properties
 
 /-!
 # Sequences in topological spaces
@@ -35,6 +36,7 @@ variables [topological_space α] [topological_space β]
 
 /-- A sequence converges in the sence of topological spaces iff the associated statement for filter
 holds. -/
+@[nolint ge_or_gt] -- see Note [nolint_ge]
 lemma topological_space.seq_tendsto_iff {x : ℕ → α} {limit : α} :
   tendsto x at_top (𝓝 limit) ↔
     ∀ U : set α, limit ∈ U → is_open U → ∃ n0 : ℕ, ∀ n ≥ n0, (x n) ∈ U :=
@@ -179,3 +181,140 @@ instance [topological_space α] [first_countable_topology α] : sequential_space
 end first_countable_topology
 
 end topological_space
+
+@[nolint ge_or_gt] -- see Note [nolint_ge]
+lemma filter.map_at_top_inf_ne_bot_iff {α : Type*} [semilattice_sup α] [nonempty α] {β : Type*} {F : filter β} {u : α → β} :
+  (map u at_top) ⊓ F ≠ ⊥ ↔ ∀ U ∈ F, ∀ N, ∃ n ≥ N, u n ∈ U :=
+by simp_rw [inf_ne_bot_iff_frequently_right, frequently_map, frequently_at_top] ; trivial
+
+lemma extraction_of_frequently_at_top' {P : ℕ → Prop} (h : ∀ N, ∃ n > N, P n) :
+  ∃ φ : ℕ → ℕ, strict_mono φ ∧ ∀ n, P (φ n) :=
+begin
+  choose u hu using h,
+  cases forall_and_distrib.mp hu with hu hu',
+  exact ⟨u ∘ (nat.rec 0 (λ n v, u v)), strict_mono.nat (λ n, hu _), λ n, hu' _⟩,
+end
+
+lemma extraction_of_frequently_at_top {P : ℕ → Prop} (h : ∃ᶠ n in at_top, P n) :
+  ∃ φ : ℕ → ℕ, strict_mono φ ∧ ∀ n, P (φ n) :=
+begin
+  rw frequently_at_top' at h,
+  exact extraction_of_frequently_at_top' h,
+end
+
+--- High scores
+
+@[nolint ge_or_gt] -- see Note [nolint_ge]
+lemma exists_le_of_tendsto_at_top {α : Type*} [decidable_linear_order α]
+  {β : Type*} [preorder β] {u : α → β} (h : tendsto u at_top at_top) :
+∀ a b, ∃ a' ≥ a, b ≤ u a' :=
+begin
+  intros a b,
+  rw tendsto_at_top at h,
+  haveI : nonempty α := ⟨a⟩,
+  cases mem_at_top_sets.mp (h b) with a' ha',
+  exact ⟨max a a', le_max_left _ _, ha' _ $ le_max_right _ _⟩,
+end
+
+@[nolint ge_or_gt] -- see Note [nolint_ge]
+lemma exists_lt_of_tendsto_at_top {α : Type*} [decidable_linear_order α]
+  {β : Type*} [preorder β] [no_top_order β] {u : α → β} (h : tendsto u at_top at_top) :
+∀ a b, ∃ a' ≥ a, b < u a' :=
+begin
+  intros a b,
+  cases no_top b with b' hb',
+  rcases exists_le_of_tendsto_at_top h a b' with ⟨a', ha', ha''⟩,
+  exact ⟨a', ha', lt_of_lt_of_le hb' ha''⟩
+end
+
+@[nolint ge_or_gt] -- see Note [nolint_ge]
+lemma high_scores {β : Type*} [decidable_linear_order β] [no_top_order β] {u : ℕ → β}
+  (hu : tendsto u at_top at_top) : ∀ N, ∃ n ≥ N, ∀ k < n, u k < u n :=
+begin
+  intros N,
+  let A := finset.image u (finset.range $ N+1), -- A = {u 0, ..., u N}
+  have Ane : A.nonempty,
+    from ⟨u 0, finset.mem_image_of_mem _ (finset.mem_range.mpr $ nat.zero_lt_succ _)⟩,
+  let M := finset.max' A Ane,
+  have ex : ∃ n ≥ N, M < u n,
+    from exists_lt_of_tendsto_at_top hu _ _,
+  obtain ⟨n, hnN, hnM, hn_min⟩ : ∃ n, N ≤ n ∧ M < u n ∧ ∀ k, N ≤ k → k < n → u k ≤ M,
+  { use nat.find ex,
+    rw ← and_assoc,
+    split,
+    { simpa using nat.find_spec ex },
+    { intros k hk hk',
+      simpa [hk] using nat.find_min ex hk' } },
+  use [n, hnN],
+  intros k hk,
+  by_cases H : k ≤ N,
+  { have : u k ∈ A,
+      from finset.mem_image_of_mem _ (finset.mem_range.mpr $ nat.lt_succ_of_le H),
+    have : u k ≤ M,
+      from finset.le_max' A Ane (u k) this,
+    exact lt_of_le_of_lt this hnM },
+  { push_neg at H,
+    calc u k ≤ M   : hn_min k (le_of_lt H) hk
+         ... < u n : hnM },
+end
+
+lemma frequently_high_scores {β : Type*} [decidable_linear_order β] [no_top_order β] {u : ℕ → β}
+  (hu : tendsto u at_top at_top) : ∃ᶠ n in at_top, ∀ k < n, u k < u n :=
+by simpa [frequently_at_top] using high_scores hu
+
+lemma strict_mono_subseq_of_tendsto_at_top
+  {β : Type*} [decidable_linear_order β] [no_top_order β]
+  {u : ℕ → β} (hu : tendsto u at_top at_top) :
+  ∃ φ : ℕ → ℕ, strict_mono φ ∧ strict_mono (u ∘ φ) :=
+let ⟨φ, h, h'⟩ := extraction_of_frequently_at_top (frequently_high_scores hu) in
+⟨φ, h, λ n m hnm, h' m _ (h hnm)⟩
+
+lemma strict_mono_subseq_of_id_le {u : ℕ → ℕ} (hu : ∀ n, n ≤ u n) :
+  ∃ φ : ℕ → ℕ, strict_mono φ ∧ strict_mono (u ∘ φ) :=
+strict_mono_subseq_of_tendsto_at_top (tendsto_at_top_mono _ hu tendsto_id)
+
+lemma nat.id_le_of_strict_mono {φ : ℕ → ℕ} (h : strict_mono φ) : ∀ n, n ≤ φ n :=
+λ n, nat.rec_on n (nat.zero_le _) (λ n hn, nat.succ_le_of_lt (lt_of_le_of_lt hn $ h $ nat.lt_succ_self n))
+
+lemma strict_mono.tendsto_at_top {φ : ℕ → ℕ} (h : strict_mono φ) :
+  tendsto φ at_top at_top :=
+tendsto_at_top_mono _ (nat.id_le_of_strict_mono h) tendsto_id
+
+lemma subseq_tendsto_of_countable_basis {X : Type*} {f : filter X} (hf : has_countable_basis f)
+  {u : ℕ → X}
+  (hx : map u at_top ⊓ f ≠ ⊥) :
+  ∃ (θ : ℕ → ℕ), (strict_mono θ) ∧ (tendsto (u ∘ θ) at_top f) :=
+begin
+  let B := decreasing_enumerated_basis.of_has_countable_basis hf,
+  have : ∀ N, ∃ n ≥ N, u n ∈ B N,
+    from λ N, filter.map_at_top_inf_ne_bot_iff.mp hx _ (B.basis_mem N) N,
+  choose φ hφ using this,
+  cases forall_and_distrib.mp hφ with φ_ge φ_in,
+  have lim_uφ : tendsto (u ∘ φ) at_top f,
+    from B.tendsto' φ_in,
+  have lim_φ : tendsto φ at_top at_top,
+    from (tendsto_at_top_mono _ φ_ge tendsto_id),
+  obtain ⟨ψ, hψ, hψφ⟩ : ∃ ψ : ℕ → ℕ, strict_mono ψ ∧ strict_mono (φ ∘ ψ),
+    from strict_mono_subseq_of_tendsto_at_top lim_φ,
+  exact ⟨φ ∘ ψ, hψφ, lim_uφ.comp hψ.tendsto_at_top⟩,
+end
+
+open topological_space
+
+variables {X : Type*} [topological_space X] [first_countable_topology X]
+
+lemma first_countable_topology.tendsto_subseq
+  {u : ℕ → X} {x : X} (hx : map u at_top ⊓ 𝓝 x ≠ ⊥) :
+  ∃ (ψ : ℕ → ℕ), (strict_mono ψ) ∧ (u ∘ ψ ⟶ x) :=
+subseq_tendsto_of_countable_basis (first_countable_topology.nhds_generated_countable x) hx
+
+lemma compact.tendsto_subseq' {s : set X} {u : ℕ → X} (hs : compact s) (hu : ∀ᶠ n in at_top, u n ∈ s) :
+∃ (x ∈ s) (φ : ℕ → ℕ), strict_mono φ ∧ tendsto (u ∘ φ) at_top (𝓝 x) :=
+begin
+  rcases hs (map u at_top) (map_ne_bot $ at_top_ne_bot) (le_principal_iff.mpr hu) with ⟨x, x_in, hx⟩,
+  exact ⟨x, x_in, first_countable_topology.tendsto_subseq hx⟩,
+end
+
+lemma compact.tendsto_subseq {s : set X} {u : ℕ → X} (hs : compact s) (hu : ∀ n, u n ∈ s) :
+∃ (x ∈ s) (φ : ℕ → ℕ), strict_mono φ ∧ tendsto (u ∘ φ) at_top (𝓝 x) :=
+hs.tendsto_subseq' (univ_mem_sets' hu)
