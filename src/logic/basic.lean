@@ -195,7 +195,7 @@ theorem dec_em (p : Prop) [decidable p] : p ∨ ¬p := decidable.em p
 theorem by_contradiction {p} [decidable p] : (¬p → false) → p :=
 decidable.by_contradiction
 
-@[simp] theorem not_not [decidable a] : ¬¬a ↔ a :=
+theorem not_not [decidable a] : ¬¬a ↔ a :=
 iff.intro by_contradiction not_not_intro
 
 theorem of_not_not [decidable a] : ¬¬a → a :=
@@ -251,6 +251,12 @@ iff.intro and.right (λ hb, ⟨h hb, hb⟩)
 lemma and.congr_right_iff : (a ∧ b ↔ a ∧ c) ↔ (a → (b ↔ c)) :=
 ⟨λ h ha, by simp [ha] at h; exact h, and_congr_right⟩
 
+@[simp] lemma and_self_left : a ∧ a ∧ b ↔ a ∧ b :=
+⟨λ h, ⟨h.1, h.2.2⟩, λ h, ⟨h.1, h.1, h.2⟩⟩
+
+@[simp] lemma and_self_right : (a ∧ b) ∧ b ↔ a ∧ b :=
+⟨λ h, ⟨h.1.1, h.2⟩, λ h, ⟨⟨h.1, h.2⟩, h.2⟩⟩
+
 /-! ### Declarations about `or` -/
 
 theorem or_of_or_of_imp_of_imp (h₁ : a ∨ b) (h₂ : a → c) (h₃ : b → d) : c ∨ d :=
@@ -294,6 +300,12 @@ theorem or_and_distrib_left : a ∨ (b ∧ c) ↔ (a ∨ b) ∧ (a ∨ c) :=
 theorem and_or_distrib_right : (a ∧ b) ∨ c ↔ (a ∨ c) ∧ (b ∨ c) :=
 (or.comm.trans or_and_distrib_left).trans (and_congr or.comm or.comm)
 
+@[simp] lemma or_self_left : a ∨ a ∨ b ↔ a ∨ b :=
+⟨λ h, h.elim or.inl id, λ h, h.elim or.inl (or.inr ∘ or.inr)⟩
+
+@[simp] lemma or_self_right : (a ∨ b) ∨ b ↔ a ∨ b :=
+⟨λ h, h.elim id or.inr, λ h, h.elim (or.inl ∘ or.inl) or.inr⟩
+
 /-! Declarations about `iff` -/
 
 theorem iff_of_true (ha : a) (hb : b) : a ↔ b :=
@@ -329,7 +341,7 @@ by by_cases b; simp [h, or_iff_right_of_imp ((∘) false.elim)]
 theorem not_imp_of_and_not : a ∧ ¬ b → ¬ (a → b)
 | ⟨ha, hb⟩ h := hb $ h ha
 
-@[simp] theorem not_imp [decidable a] : ¬(a → b) ↔ a ∧ ¬b :=
+theorem not_imp [decidable a] : ¬(a → b) ↔ a ∧ ¬b :=
 ⟨λ h, ⟨of_not_imp h, not_of_not_imp h⟩, not_imp_of_and_not⟩
 
 -- for monotonicity
@@ -496,13 +508,13 @@ theorem not_forall {p : α → Prop}
 ⟨not.imp_symm $ λ nx x, nx.imp_symm $ λ h, ⟨x, h⟩,
  not_forall_of_exists_not⟩
 
-@[simp] theorem not_forall_not [decidable (∃ x, p x)] :
+theorem not_forall_not [decidable (∃ x, p x)] :
   (¬ ∀ x, ¬ p x) ↔ ∃ x, p x :=
 (@not_iff_comm _ _ _ (decidable_of_iff (¬ ∃ x, p x) not_exists)).1 not_exists
 
-@[simp] theorem not_exists_not [∀ x, decidable (p x)] :
+theorem not_exists_not [∀ x, decidable (p x)] :
   (¬ ∃ x, ¬ p x) ↔ ∀ x, p x :=
-by simp
+by simp [not_not]
 
 @[simp] theorem forall_true_iff : (α → true) ↔ true :=
 iff_true_intro (λ _, trivial)
@@ -656,9 +668,9 @@ variables {α : Sort*} {p : α → Prop}
 
 local attribute [instance] prop_decidable
 
-protected theorem not_forall : (¬ ∀ x, p x) ↔ (∃ x, ¬ p x) := not_forall
+@[simp] protected theorem not_forall : (¬ ∀ x, p x) ↔ (∃ x, ¬ p x) := not_forall
 
-protected theorem not_exists_not : (¬ ∃ x, ¬ p x) ↔ ∀ x, p x := not_exists_not
+@[simp] protected theorem not_exists_not : (¬ ∃ x, ¬ p x) ↔ ∀ x, p x := not_exists_not
 
 protected theorem forall_or_distrib_left {q : Prop} {p : α → Prop} :
   (∀x, q ∨ p x) ↔ q ∨ (∀x, p x) :=
@@ -684,7 +696,10 @@ or_iff_not_imp_left
 protected theorem or_iff_not_imp_right {p q : Prop} : q ∨ p ↔ (¬ p → q) :=
 or_iff_not_imp_right
 
-protected lemma not_not {p : Prop} : ¬¬p ↔ p := not_not
+@[simp] protected lemma not_not {p : Prop} : ¬¬p ↔ p := not_not
+
+@[simp] protected lemma not_imp {p q : Prop} : ¬(p → q) ↔ p ∧ ¬q :=
+not_imp
 
 protected theorem not_imp_not {p q : Prop} : (¬ p → ¬ q) ↔ (q → p) := not_imp_not
 

@@ -429,6 +429,10 @@ attribute [irreducible] nhds
 lemma mem_of_nhds {a : α} {s : set α} : s ∈ 𝓝 a → a ∈ s :=
 λ H, let ⟨t, ht, _, hs⟩ := mem_nhds_sets_iff.1 H in ht hs
 
+lemma filter.eventually.self_of_nhds {p : α → Prop} {a : α}
+  (h : ∀ᶠ y in 𝓝 a, p y) : p a :=
+mem_of_nhds h
+
 lemma mem_nhds_sets {a : α} {s : set α} (hs : is_open s) (ha : a ∈ s) :
  s ∈ 𝓝 a :=
 mem_nhds_sets_iff.2 ⟨s, subset.refl _, hs, ha⟩
@@ -521,7 +525,7 @@ theorem mem_closure_iff_nhds_basis {a : α} {p : β → Prop} {s : β → set α
   a ∈ closure t ↔ ∀ i, p i → ∃ y ∈ t, y ∈ s i :=
 mem_closure_iff_nhds.trans
   ⟨λ H i hi, let ⟨x, hx⟩ := (H _ $ h.mem_of_mem hi) in ⟨x, hx.2, hx.1⟩,
-    λ H t' ht', let ⟨i, hi, hit⟩ := (h t').1 ht', ⟨x, xt, hx⟩ := H i hi in
+    λ H t' ht', let ⟨i, hi, hit⟩ := h.mem_iff.1 ht', ⟨x, xt, hx⟩ := H i hi in
     ⟨x, hit hx, xt⟩⟩
 
 /-- `x` belongs to the closure of `s` if and only if some ultrafilter
