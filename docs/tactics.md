@@ -880,6 +880,8 @@ Known limitation(s):
     It is likely that none of the suggestion is a good replacement but they can all be
     combined by concatenating their list of lemmas.
 
+## squeeze_scope
+
 ## fin_cases
 `fin_cases h` performs case analysis on a hypothesis of the form
 1) `h : A`, where `[fintype A]` is available, or

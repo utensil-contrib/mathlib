@@ -140,6 +140,21 @@ end
 
 end refine_struct
 
+section refine_struct
+
+variables {α} {β : α → Type} [∀ i, monoid $ β i]
+-- include _inst
+
+example : monoid (Π i, β i) :=
+begin
+  refine_struct ({ mul := λ (x y : Π i, β i) i, x i * y i, one := λ i, 1 }),
+  field mul_assoc one_mul mul_one
+  { have_field, intros,
+    ext i, apply @field (β i) },
+end
+
+end refine_struct
+
 meta example : true :=
 begin
    success_if_fail { let := compact_relation },
