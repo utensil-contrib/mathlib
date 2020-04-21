@@ -4,7 +4,13 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Author: Chris Hughes
 -/
 
-import data.int.modeq data.int.gcd data.fintype.basic data.pnat.basic tactic.ring
+import data.int.modeq
+import data.int.gcd
+import data.fintype.basic
+import data.pnat.basic
+import ring_theory.ideals
+import data.equiv.ring
+import tactic.ring
 
 /-!
 # Integers mod `n`
@@ -32,81 +38,78 @@ synthesized. This leads to a lot of code duplication and most of the functions a
 
 open nat nat.modeq int
 
-def zmod (n : ℕ+) := fin n
+def zmod : ℕ →  Type
+| 0     := ℤ
+| (n+1) := fin (n+1)
 
-namespace zmod
+namespace fin
 
-instance (n : ℕ+) : has_neg (zmod n) :=
+def has_neg (n : ℕ) : has_neg (fin n) :=
 ⟨λ a, ⟨nat_mod (-(a.1 : ℤ)) n,
-  have h : (n : ℤ) ≠ 0 := int.coe_nat_ne_zero_iff_pos.2 n.pos,
-  have h₁ : ((n : ℕ) : ℤ) = abs n := (abs_of_nonneg (int.coe_nat_nonneg n)).symm,
-  by rw [← int.coe_nat_lt, nat_mod, to_nat_of_nonneg (int.mod_nonneg _ h), h₁];
-    exact int.mod_lt _ h⟩⟩
+begin
+  have npos : 0 < n := lt_of_le_of_lt (nat.zero_le _) a.2,
+  have h : (n : ℤ) ≠ 0 := int.coe_nat_ne_zero_iff_pos.2 npos,
+  have := int.mod_lt (-(a.1 : ℤ)) h,
+  rw [(abs_of_nonneg (int.coe_nat_nonneg n))] at this,
+  rwa [← int.coe_nat_lt, nat_mod, to_nat_of_nonneg (int.mod_nonneg _ h)]
+end⟩⟩
 
-instance (n : ℕ+) : add_comm_semigroup (zmod n) :=
+def add_comm_semigroup (n : ℕ) : add_comm_semigroup (fin (n+1)) :=
 { add_assoc := λ ⟨a, ha⟩ ⟨b, hb⟩ ⟨c, hc⟩, fin.eq_of_veq
-    (show ((a + b) % n + c) ≡ (a + (b + c) % n) [MOD n],
-    from calc ((a + b) % n + c) ≡ a + b + c [MOD n] : modeq_add (nat.mod_mod _ _) rfl
-      ... ≡ a + (b + c) [MOD n] : by rw add_assoc
-      ... ≡ (a + (b + c) % n) [MOD n] : modeq_add rfl (nat.mod_mod _ _).symm),
-  add_comm := λ ⟨a, _⟩ ⟨b, _⟩, fin.eq_of_veq (show (a + b) % n = (b + a) % n, by rw add_comm),
+    (show ((a + b) % (n+1) + c) ≡ (a + (b + c) % (n+1)) [MOD (n+1)],
+    from calc ((a + b) % (n+1) + c) ≡ a + b + c [MOD (n+1)] : modeq_add (nat.mod_mod _ _) rfl
+      ... ≡ a + (b + c) [MOD (n+1)] : by rw add_assoc
+      ... ≡ (a + (b + c) % (n+1)) [MOD (n+1)] : modeq_add rfl (nat.mod_mod _ _).symm),
+  add_comm := λ ⟨a, _⟩ ⟨b, _⟩, fin.eq_of_veq (show (a + b) % (n+1) = (b + a) % (n+1), by rw add_comm),
   ..fin.has_add }
 
-instance (n : ℕ+) : comm_semigroup (zmod n) :=
+def comm_semigroup (n : ℕ) : comm_semigroup (fin (n+1)) :=
 { mul_assoc := λ ⟨a, ha⟩ ⟨b, hb⟩ ⟨c, hc⟩, fin.eq_of_veq
-    (calc ((a * b) % n * c) ≡ a * b * c [MOD n] : modeq_mul (nat.mod_mod _ _) rfl
-      ... ≡ a * (b * c) [MOD n] : by rw mul_assoc
-      ... ≡ a * (b * c % n) [MOD n] : modeq_mul rfl (nat.mod_mod _ _).symm),
-  mul_comm := λ ⟨a, _⟩ ⟨b, _⟩, fin.eq_of_veq (show (a * b) % n = (b * a) % n, by rw mul_comm),
+    (calc ((a * b) % (n+1) * c) ≡ a * b * c [MOD (n+1)] : modeq_mul (nat.mod_mod _ _) rfl
+      ... ≡ a * (b * c) [MOD (n+1)] : by rw mul_assoc
+      ... ≡ a * (b * c % (n+1)) [MOD (n+1)] : modeq_mul rfl (nat.mod_mod _ _).symm),
+  mul_comm := λ ⟨a, _⟩ ⟨b, _⟩, fin.eq_of_veq (show (a * b) % (n+1) = (b * a) % (n+1), by rw mul_comm),
   ..fin.has_mul }
 
-instance (n : ℕ+) : has_one (zmod n) := ⟨⟨(1 % n), nat.mod_lt _ n.pos⟩⟩
+local attribute [instance] fin.add_comm_semigroup fin.comm_semigroup
 
-instance (n : ℕ+) : has_zero (zmod n) := ⟨⟨0, n.pos⟩⟩
-
-instance (n : ℕ+) : inhabited (zmod n) := ⟨0⟩
-
-instance zmod_one.subsingleton : subsingleton (zmod 1) :=
-⟨λ a b, fin.eq_of_veq (by rw [eq_zero_of_le_zero (le_of_lt_succ a.2),
-  eq_zero_of_le_zero (le_of_lt_succ b.2)])⟩
-
-lemma add_val {n : ℕ+} : ∀ a b : zmod n, (a + b).val = (a.val + b.val) % n
+lemma add_val {n : ℕ} : ∀ a b : fin n, (a + b).val = (a.val + b.val) % n
 | ⟨_, _⟩ ⟨_, _⟩ := rfl
 
-lemma mul_val {n : ℕ+} :  ∀ a b : zmod n, (a * b).val = (a.val * b.val) % n
+lemma mul_val {n : ℕ} :  ∀ a b : fin n, (a * b).val = (a.val * b.val) % n
 | ⟨_, _⟩ ⟨_, _⟩ := rfl
 
-lemma one_val {n : ℕ+} : (1 : zmod n).val = 1 % n := rfl
+lemma one_val {n : ℕ} : (1 : fin (n+1)).val = 1 % (n+1) := rfl
 
-@[simp] lemma zero_val (n : ℕ+) : (0 : zmod n).val = 0 := rfl
+@[simp] lemma zero_val (n : ℕ) : (0 : fin (n+1)).val = 0 := rfl
 
-private lemma one_mul_aux (n : ℕ+) (a : zmod n) : (1 : zmod n) * a = a :=
+private lemma one_mul_aux (n : ℕ) (a : fin (n+1)) : (1 : fin (n+1)) * a = a :=
 begin
-  cases n with n hn,
   cases n with n,
-  { exact (lt_irrefl _ hn).elim },
-  { cases n with n,
-    { exact @subsingleton.elim (zmod 1) _ _ _ },
-    { have h₁ : a.1 % n.succ.succ = a.1 := nat.mod_eq_of_lt a.2,
-      have h₂ : 1 % n.succ.succ = 1 := nat.mod_eq_of_lt dec_trivial,
-      refine fin.eq_of_veq _,
-      simp [mul_val, one_val, h₁, h₂] } }
+  { exact subsingleton.elim _ _ },
+  { have h₁ : a.1 % n.succ.succ = a.1 := nat.mod_eq_of_lt a.2,
+    have h₂ : 1 % n.succ.succ = 1 := nat.mod_eq_of_lt dec_trivial,
+    refine fin.eq_of_veq _,
+    simp [mul_val, one_val, h₁, h₂] }
 end
 
-private lemma left_distrib_aux (n : ℕ+) : ∀ a b c : zmod n, a * (b + c) = a * b + a * c :=
+private lemma left_distrib_aux (n : ℕ) : ∀ a b c : fin (n+1), a * (b + c) = a * b + a * c :=
 λ ⟨a, ha⟩ ⟨b, hb⟩ ⟨c, hc⟩, fin.eq_of_veq
-(calc a * ((b + c) % n) ≡ a * (b + c) [MOD n] : modeq_mul rfl (nat.mod_mod _ _)
-  ... ≡ a * b + a * c [MOD n] : by rw mul_add
-  ... ≡ (a * b) % n + (a * c) % n [MOD n] : modeq_add (nat.mod_mod _ _).symm (nat.mod_mod _ _).symm)
+(calc a * ((b + c) % (n+1)) ≡ a * (b + c) [MOD (n+1)] : modeq_mul rfl (nat.mod_mod _ _)
+  ... ≡ a * b + a * c [MOD (n+1)] : by rw mul_add
+  ... ≡ (a * b) % (n+1) + (a * c) % (n+1) [MOD (n+1)] :
+        modeq_add (nat.mod_mod _ _).symm (nat.mod_mod _ _).symm)
 
-instance (n : ℕ+) : comm_ring (zmod n) :=
-{ zero_add := λ ⟨a, ha⟩, fin.eq_of_veq (show (0 + a) % n = a, by rw zero_add; exact nat.mod_eq_of_lt ha),
+def comm_ring (n : ℕ) : comm_ring (fin (n+1)) :=
+{ zero_add := λ ⟨a, ha⟩, fin.eq_of_veq (show (0 + a) % (n+1) = a,
+    by rw zero_add; exact nat.mod_eq_of_lt ha),
   add_zero := λ ⟨a, ha⟩, fin.eq_of_veq (nat.mod_eq_of_lt ha),
   add_left_neg :=
-    λ ⟨a, ha⟩, fin.eq_of_veq (show (((-a : ℤ) % n).to_nat + a) % n = 0,
+    λ ⟨a, ha⟩, fin.eq_of_veq (show (((-a : ℤ) % (n+1)).to_nat + a) % (n+1) = 0,
       from int.coe_nat_inj
       begin
-        have hn : (n : ℤ) ≠ 0 := (ne_of_lt (int.coe_nat_lt.2 n.pos)).symm,
+        have npos : 0 < n+1 := lt_of_le_of_lt (nat.zero_le _) ha,
+        have hn : ((n+1) : ℤ) ≠ 0 := (ne_of_lt (int.coe_nat_lt.2 npos)).symm,
         rw [int.coe_nat_mod, int.coe_nat_add, to_nat_of_nonneg (int.mod_nonneg _ hn), add_comm],
         simp,
       end),
@@ -114,21 +117,41 @@ instance (n : ℕ+) : comm_ring (zmod n) :=
   mul_one := λ a, by rw mul_comm; exact one_mul_aux n a,
   left_distrib := left_distrib_aux n,
   right_distrib := λ a b c, by rw [mul_comm, left_distrib_aux, mul_comm _ b, mul_comm]; refl,
-  ..zmod.has_zero n,
-  ..zmod.has_one n,
-  ..zmod.has_neg n,
-  ..zmod.add_comm_semigroup n,
-  ..zmod.comm_semigroup n }
+  ..fin.has_zero,
+  ..fin.has_one,
+  ..fin.has_neg (n+1),
+  ..fin.add_comm_semigroup n,
+  ..fin.comm_semigroup n }
 
-lemma val_cast_nat {n : ℕ+} (a : ℕ) : (a : zmod n).val = a % n :=
+end fin
+
+namespace zmod
+
+instance : Π (n : ℕ), comm_ring (zmod n)
+| 0     := int.comm_ring
+| (n+1) := fin.comm_ring n
+
+def val : Π {n : ℕ}, zmod n → ℕ
+| 0     := int.nat_abs
+| (n+1) := fin.val
+
+@[simp] lemma val_zero : ∀ {n}, (0 : zmod n).val = 0
+| 0     := rfl
+| (n+1) := rfl
+
+lemma val_cast_nat {n : ℕ} [fact (0 < n)] (a : ℕ) : (a : zmod n).val = a % n :=
 begin
   induction a with a ih,
-  { rw [nat.zero_mod]; refl },
-  { rw [succ_eq_add_one, nat.cast_add, add_val, ih],
+  { rw [nat.zero_mod], simp },
+  { rw [succ_eq_add_one, nat.cast_add, fin.add_val, ih],
     show (a % n + ((0 + (1 % n)) % n)) % n = (a + 1) % n,
     rw [zero_add, nat.mod_mod],
     exact nat.modeq.modeq_add (nat.mod_mod a n) (nat.mod_mod 1 n) }
 end
+
+lemma cast_self_eq_zero : ∀ (n : ℕ), (n : zmod n) = 0
+| 0     := rfl
+| (n+1) := fin.eq_of_veq (show ((n+1) : zmod (n+1)).val = 0, by simp [val_cast_nat])
 
 lemma neg_val' {m : pnat} (n : zmod m) : (-n).val = (m - n.val) % m :=
 have ((-n).val + n.val) % m = (m - n.val + n.val) % m,
