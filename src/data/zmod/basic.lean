@@ -37,13 +37,9 @@ synthesized. This leads to a lot of code duplication and most of the functions a
 `zmod` are restated for `zmodp`
 -/
 
-open nat nat.modeq int
-
-def zmod : ℕ →  Type
-| 0     := ℤ
-| (n+1) := fin (n+1)
-
 namespace fin
+
+open nat nat.modeq int
 
 def has_neg (n : ℕ) : has_neg (fin n) :=
 ⟨λ a, ⟨nat_mod (-(a.1 : ℤ)) n,
@@ -140,11 +136,36 @@ end
 
 end fin
 
+def zmod : ℕ →  Type
+| 0     := ℤ
+| (n+1) := fin (n+1)
+
 namespace zmod
 
-instance : Π (n : ℕ), comm_ring (zmod n)
+instance fintype : Π (n : ℕ) [fact (0 < n)], fintype (zmod n)
+| 0     _ := false.elim $ nat.not_lt_zero 0 ‹0 < 0›
+| (n+1) _ := fin.fintype (n+1)
+
+lemma card (n : ℕ) [fact (0 < n)] : fintype.card (zmod n) = n :=
+begin
+  unfreezeI, cases n,
+  { exfalso, exact nat.not_lt_zero 0 ‹0 < 0› },
+  { exact fintype.card_fin (n+1) }
+end
+
+instance decidable_eq : Π (n : ℕ), decidable_eq (zmod n)
+| 0     := int.decidable_eq
+| (n+1) := fin.decidable_eq _
+
+instance has_repr : Π (n : ℕ), has_repr (zmod n)
+| 0     := int.has_repr
+| (n+1) := fin.has_repr _
+
+instance comm_ring : Π (n : ℕ), comm_ring (zmod n)
 | 0     := int.comm_ring
 | (n+1) := fin.comm_ring n
+
+instance inhabited (n : ℕ) : inhabited (zmod n) := ⟨0⟩
 
 def val : Π {n : ℕ}, zmod n → ℕ
 | 0     := int.nat_abs
@@ -158,8 +179,8 @@ lemma val_cast_nat {n : ℕ} (a : ℕ) : (a : zmod n).val = a % n :=
 begin
   unfreezeI,
   cases n,
-  { rw [nat.mod_zero, nat_cast_eq_coe_nat],
-    exact nat_abs_of_nat a, },
+  { rw [nat.mod_zero, int.nat_cast_eq_coe_nat],
+    exact int.nat_abs_of_nat a, },
   rw ← fin.of_nat_eq_coe,
   refl
 end
@@ -169,15 +190,21 @@ instance (n : ℕ) : char_p (zmod n) n :=
   begin
     intro k,
     cases n,
-    { simp only [nat_cast_eq_coe_nat, zero_dvd_iff, coe_nat_eq_zero], },
+    { simp only [int.nat_cast_eq_coe_nat, zero_dvd_iff, int.coe_nat_eq_zero], },
     rw [fin.eq_iff_veq],
     show (k : zmod (n+1)).val = (0 : zmod (n+1)).val ↔ _,
     rw [val_cast_nat, val_zero, nat.dvd_iff_mod_eq_zero],
   end }
 
+@[simp] lemma coe_self (n : ℕ) : (n : zmod n) = 0 :=
+char_p.cast_eq_zero (zmod n) n
+
 section universal_property
 
-variables {n : ℕ} {R : Type*} [ring R]
+variables {n : ℕ} {R : Type*}
+
+section
+variables [has_zero R] [has_one R] [has_add R] [has_neg R]
 
 def cast : Π {n : ℕ}, zmod n → R
 | 0     := int.cast
@@ -188,7 +215,9 @@ instance (n : ℕ) : has_coe (zmod n) R := ⟨cast⟩
 @[simp] lemma cast_zero : ((0 : zmod n) : R) = 0 :=
 by { cases n; refl }
 
-variable [char_p R n]
+end
+
+variables [ring R] [char_p R n]
 
 @[simp] lemma cast_one : ((1 : zmod n) : R) = 1 :=
 begin
@@ -234,7 +263,7 @@ lemma int_cast_surjective :
 begin
   assume i,
   cases n,
-  { use i, exact cast_id i },
+  { exact ⟨i, int.cast_id i⟩ },
   { rcases nat_cast_surjective i with ⟨k, rfl⟩,
     refine ⟨k, _⟩, norm_cast }
 end
@@ -290,20 +319,20 @@ lemma val_injective (n : ℕ) [fact (0 < n)] :
 begin
   unfreezeI,
   cases n,
-  { exfalso, exact not_lt_zero 0 ‹_› },
+  { exfalso, exact nat.not_lt_zero 0 ‹_› },
   assume a b h,
   ext,
   exact h
 end
 
-lemma val_cast_int {n : ℕ} (a : ℤ) : (a : zmod n).val = (a % n).nat_abs :=
-begin
-  unfreezeI,
-  cases n,
-  { simp only [euclidean_domain.mod_zero, int.cast_id, int.coe_nat_zero],
-    refl },
-  sorry
-end
+-- lemma val_cast_int {n : ℕ} (a : ℤ) : (a : zmod n).val = (a % n).nat_abs :=
+-- begin
+--   unfreezeI,
+--   cases n,
+--   { simp only [euclidean_domain.mod_zero, int.cast_id, int.coe_nat_zero],
+--     refl },
+--   sorry
+-- end
 
 -- move this
 instance pos_of_one_lt (n : ℕ) [fact (1 < n)] : fact (0 < n) :=
@@ -326,42 +355,29 @@ instance (n : ℕ) [fact (1 < n)] : zero_ne_one_class (zmod n) :=
     exact zero_ne_one h,
   end }
 
+def inv : Π (n : ℕ), zmod n → zmod n
+| 0     i := int.sign i
+| (n+1) i := nat.gcd_a i.val (n+1)
+
 instance (n : ℕ) : has_inv (zmod n) :=
-⟨λ a, gcd_a a.val n⟩
+⟨inv n⟩
 
--- move this
-@[simp] lemma int.modeq_zero (a b : ℤ) : a ≡ b [ZMOD 0] ↔ a = b :=
-by simp only [int.modeq, euclidean_domain.mod_zero]
+lemma inv_zero : ∀ (n : ℕ), (0 : zmod n)⁻¹ = 0
+| 0     := int.sign_zero
+| (n+1) := show (nat.gcd_a _ (n+1) : zmod (n+1)) = 0,
+             by { rw val_zero, unfold nat.gcd_a nat.xgcd nat.xgcd_aux, refl }
 
-lemma eq_iff_modeq_int (n : ℕ) {a b : ℤ} : (a : zmod n) = b ↔ a ≡ b [ZMOD n] :=
-begin
-  cases n,
-  { simp only [int.modeq_zero, int.cast_id, int.coe_nat_zero], },
-  split,
-  { assume h, sorry },
-  { assume h,  }
--- ⟨λ h, by have := fin.veq_of_eq h;
---   rwa [val_cast_int, val_cast_int, ← int.coe_nat_eq_coe_nat_iff,
---     nat_abs_of_nonneg (int.mod_nonneg _ (int.coe_nat_ne_zero_iff_pos.2 n.pos)),
---     nat_abs_of_nonneg (int.mod_nonneg _ (int.coe_nat_ne_zero_iff_pos.2 n.pos))] at this,
--- λ h : a % (n : ℕ) = b % (n : ℕ),
---   by rw [← cast_mod_int n a, ← cast_mod_int n b, h]⟩
-end
-
-lemma coe_mul_inv_eq_gcd (n a : ℕ) : (a : zmod n) * a⁻¹ = nat.gcd a n :=
-begin
-  rw [← int.cast_coe_nat (nat.gcd _ _), nat.gcd_comm, nat.gcd_rec],
-  rw [← (eq_iff_modeq_int n).2 (int.modeq.gcd_a_modeq _ _)],
-  simp only [has_inv.inv, val_cast_nat, int.cast_mul, coe_nat_mod],
-  congr' 1,
-  rw [← sub_eq_zero],
-end
-
-lemma mul_inv_eq_gcd {n : ℕ} [fact (0 < n)] (a : zmod n) :
+lemma mul_inv_eq_gcd {n : ℕ} (a : zmod n) :
   a * a⁻¹ = nat.gcd a.val n :=
 begin
-  obtain ⟨a, rfl⟩ := nat_cast_surjective a,
-  rw [coe_mul_inv_eq_gcd n a, val_cast_nat, nat.gcd_comm, nat.gcd_rec],
+  cases n,
+  { calc a * a⁻¹ = a * int.sign a  : rfl
+             ... = a.nat_abs   : by rw [int.mul_sign, int.nat_cast_eq_coe_nat]
+             ... = a.val.gcd 0 : by rw nat.gcd_zero_right; refl },
+  { set k := n.succ,
+    calc a * a⁻¹ = a * a⁻¹ + k * nat.gcd_b (val a) k : by rw [coe_self, zero_mul, add_zero]
+             ... = ↑(↑a.val * nat.gcd_a (val a) k + k * nat.gcd_b (val a) k) : by { push_cast, rw cast_val, refl }
+             ... = nat.gcd a.val k : (congr_arg coe (nat.gcd_eq_gcd_ab a.val k)).symm, }
 end
 
 end zmod
@@ -375,16 +391,15 @@ instance prime.fact_one_lt : fact (1 < p) := nat.prime.one_lt ‹p.prime›
 
 private lemma mul_inv_cancel_aux (a : zmod p) (ha : a ≠ 0) : a * a⁻¹ = 1 :=
 begin
-  replace ha : ¬ p ∣ a.val,
-  { rwa [← char_p.cast_eq_zero_iff (zmod p), cast_val] },
-  have : nat.gcd p a.val = 1 := (prime.coprime_iff_not_dvd ‹p.prime›).2 ha,
-  rw [mul_inv_eq_gcd, nat.gcd_comm, this, nat.cast_one],
+  suffices : nat.gcd p a.val = 1,
+  { rw [mul_inv_eq_gcd, nat.gcd_comm, this, nat.cast_one] },
+  apply (nat.prime.coprime_iff_not_dvd ‹p.prime›).mpr,
+  rwa [← char_p.cast_eq_zero_iff (zmod p), cast_val]
 end
 
 instance : field (zmod p) :=
 { mul_inv_cancel := mul_inv_cancel_aux p,
-  inv_zero := show (gcd_a _ p : zmod p) = 0,
-    by { rw val_zero, unfold gcd_a xgcd xgcd_aux, refl },
+  inv_zero := inv_zero p,
   .. zmod.comm_ring p,
   .. zmod.zero_ne_one_class p,
   .. zmod.has_inv p }
