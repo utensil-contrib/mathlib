@@ -204,7 +204,7 @@ instance (n : ℕ) : char_p (zmod n) n :=
     rw [val_cast_nat, val_zero, nat.dvd_iff_mod_eq_zero],
   end }
 
-@[simp] lemma coe_self (n : ℕ) : (n : zmod n) = 0 :=
+@[simp] lemma cast_self (n : ℕ) : (n : zmod n) = 0 :=
 char_p.cast_eq_zero (zmod n) n
 
 section universal_property
@@ -406,7 +406,7 @@ begin
              ... = a.nat_abs   : by rw [int.mul_sign, int.nat_cast_eq_coe_nat]
              ... = a.val.gcd 0 : by rw nat.gcd_zero_right; refl },
   { set k := n.succ,
-    calc a * a⁻¹ = a * a⁻¹ + k * nat.gcd_b (val a) k : by rw [coe_self, zero_mul, add_zero]
+    calc a * a⁻¹ = a * a⁻¹ + k * nat.gcd_b (val a) k : by rw [cast_self, zero_mul, add_zero]
              ... = ↑(↑a.val * nat.gcd_a (val a) k + k * nat.gcd_b (val a) k) : by { push_cast, rw cast_val, refl }
              ... = nat.gcd a.val k : (congr_arg coe (nat.gcd_eq_gcd_ab a.val k)).symm, }
 end
@@ -489,6 +489,54 @@ begin
 end
 
 end totient
+
+instance subsingleton_units : subsingleton (units (zmod 2)) :=
+⟨λ x y, begin
+  cases x with x xi,
+  cases y with y yi,
+  revert x y xi yi,
+  exact dec_trivial
+end⟩
+
+lemma le_div_two_iff_lt_neg (n : ℕ) [hn : fact ((n : ℕ) % 2 = 1)]
+  {x : zmod n} (hx0 : x ≠ 0) : x.val ≤ (n / 2 : ℕ) ↔ (n / 2 : ℕ) < (-x).val :=
+begin
+  haveI npos : fact (0 < n) :=
+  by { apply (nat.eq_zero_or_pos n).resolve_left, resetI, rintro rfl, simpa [fact] using hn, },
+  have hn2 : (n : ℕ) / 2 < n := nat.div_lt_of_lt_mul ((lt_mul_iff_one_lt_left npos).2 dec_trivial),
+  have hn2' : (n : ℕ) - n / 2 = n / 2 + 1,
+  { conv {to_lhs, congr, rw [← nat.succ_sub_one n, nat.succ_sub npos]},
+    rw [← nat.two_mul_odd_div_two hn, two_mul, ← nat.succ_add, nat.add_sub_cancel], },
+  have hxn : (n : ℕ) - x.val < n,
+  { rw [nat.sub_lt_iff (le_of_lt x.val_lt) (le_refl _), nat.sub_self],
+    rw ← zmod.cast_val x at hx0,
+    exact nat.pos_of_ne_zero (λ h, by simpa [h] using hx0) },
+  by conv {to_rhs, rw [← nat.succ_le_iff, nat.succ_eq_add_one, ← hn2', ← zero_add (- x),
+    ← zmod.cast_self, ← sub_eq_add_neg, ← zmod.cast_val x, ← nat.cast_sub (le_of_lt x.val_lt),
+    zmod.val_cast_nat, nat.mod_eq_of_lt hxn, nat.sub_le_sub_left_iff (le_of_lt x.val_lt)] }
+end
+
+lemma ne_neg_self (n : ℕ) [hn : fact ((n : ℕ) % 2 = 1)] {a : zmod n} (ha : a ≠ 0) : a ≠ -a :=
+λ h, have a.val ≤ n / 2 ↔ (n : ℕ) / 2 < (-a).val := le_div_two_iff_lt_neg n ha,
+by rwa [← h, ← not_lt, not_iff_self] at this
+
+lemma neg_one_ne_one {n : ℕ} [fact (2 < n)] :
+  (-1 : zmod n) ≠ 1 :=
+begin
+  suffices : (2 : zmod n) ≠ 0,
+  { symmetry, rw [ne.def, ← sub_eq_zero, sub_neg_eq_add], exact this },
+  assume h,
+  rw [show (2 : zmod n) = (2 : ℕ), by norm_cast] at h,
+  have := (char_p.cast_eq_zero_iff (zmod n) n 2).mp h,
+  have := nat.le_of_dvd dec_trivial this,
+  rw fact at *, linarith,
+end
+
+@[simp] lemma neg_zmod_two : ∀ (a : zmod 2), -a = a :=
+dec_trivial
+
+lemma val_cast_of_lt {n : ℕ} {a : ℕ} (h : a < n) : (a : zmod n).val = a :=
+by rw [val_cast_nat, nat.mod_eq_of_lt h]
 
 end zmod
 

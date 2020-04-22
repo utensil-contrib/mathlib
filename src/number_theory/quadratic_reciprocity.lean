@@ -25,100 +25,126 @@ Also proven are conditions for `-1` and `2` to be a square modulo a prime,
 The proof of quadratic reciprocity implemented uses Gauss' lemma and Eisenstein's lemma
 -/
 
+open function finset nat finite_field zmod
 
-open function finset nat finite_field zmodp
+namespace zmod
 
-namespace zmodp
+variables (p q : ℕ) [fact p.prime] [fact q.prime]
 
-variables {p q : ℕ} (hp : nat.prime p) (hq : nat.prime q)
+@[simp] lemma card_units : fintype.card (units (zmod p)) = p - 1 :=
+by rw [card_units, zmod.card]
 
-@[simp] lemma card_units_zmodp : fintype.card (units (zmodp p hp)) = p - 1 :=
-by rw [card_units, card_zmodp]
+/-- Fermat's Little Theorem: for every unit `a` of `zmod p`, we have `a ^ (p - 1) = 1`. -/
+theorem fermat_little_units {p : ℕ} [fact p.prime] (a : units (zmod p)) :
+  a ^ (p - 1) = 1 :=
+by rw [← card_units p, pow_card_eq_one]
 
-theorem fermat_little {p : ℕ} (hp : nat.prime p) {a : zmodp p hp} (ha : a ≠ 0) : a ^ (p - 1) = 1 :=
-by rw [← units.coe_mk0 ha, ← @units.coe_one (zmodp p hp), ← units.coe_pow, ← units.ext_iff,
-    ← card_units_zmodp hp, pow_card_eq_one]
-
-lemma euler_criterion_units {x : units (zmodp p hp)} :
-  (∃ y : units (zmodp p hp), y ^ 2 = x) ↔ x ^ (p / 2) = 1 :=
-hp.eq_two_or_odd.elim
-  (λ h, by resetI; subst h; exact iff_of_true ⟨1, subsingleton.elim _ _⟩ (subsingleton.elim _ _))
-  (λ hp1, let ⟨g, hg⟩ := is_cyclic.exists_generator (units (zmodp p hp)) in
-    let ⟨n, hn⟩ := show x ∈ powers g, from (powers_eq_gpowers g).symm ▸ hg x in
-    ⟨λ ⟨y, hy⟩, by rw [← hy, ← pow_mul, two_mul_odd_div_two hp1,
-        ← card_units_zmodp hp, pow_card_eq_one],
-    λ hx, have 2 * (p / 2) ∣ n * (p / 2),
-        by rw [two_mul_odd_div_two hp1, ← card_units_zmodp hp, ← order_of_eq_card_of_forall_mem_gpowers hg];
-        exact order_of_dvd_of_pow_eq_one (by rwa [pow_mul, hn]),
-      let ⟨m, hm⟩ := dvd_of_mul_dvd_mul_right (nat.div_pos hp.two_le dec_trivial) this in
-      ⟨g ^ m, by rwa [← pow_mul, mul_comm, ← hm]⟩⟩)
-
-lemma euler_criterion {a : zmodp p hp} (ha : a ≠ 0) :
-  (∃ y : zmodp p hp, y ^ 2 = a) ↔ a ^ (p / 2) = 1 :=
-⟨λ ⟨y, hy⟩,
-  have hy0 : y ≠ 0, from λ h, by simp [h, _root_.zero_pow (succ_pos 1)] at hy; cc,
-  by simpa using (units.ext_iff.1 $ (euler_criterion_units hp).1 ⟨units.mk0 _ hy0, show _ = units.mk0 _ ha,
-    by rw [units.ext_iff]; simpa⟩),
-λ h, let ⟨y, hy⟩ := (euler_criterion_units hp).2 (show units.mk0 _ ha ^ (p / 2) = 1, by simpa [units.ext_iff]) in
-  ⟨y, by simpa [units.ext_iff] using hy⟩⟩
-
-lemma exists_pow_two_eq_neg_one_iff_mod_four_ne_three :
-  (∃ y : zmodp p hp, y ^ 2 = -1) ↔ p % 4 ≠ 3 :=
-have (-1 : zmodp p hp) ≠ 0, from mt neg_eq_zero.1 one_ne_zero,
-hp.eq_two_or_odd.elim (λ hp, by resetI; subst hp; exact dec_trivial)
-  (λ hp1, (mod_two_eq_zero_or_one (p / 2)).elim
-    (λ hp2, begin
-      rw [euler_criterion hp this, neg_one_pow_eq_pow_mod_two, hp2, _root_.pow_zero,
-        eq_self_iff_true, true_iff],
-      assume h,
-      rw [← nat.mod_mul_right_div_self, show 2 * 2 = 4, from rfl, h] at hp2,
-      exact absurd hp2 dec_trivial,
-    end)
-    (λ hp2, begin
-      rw [euler_criterion hp this, neg_one_pow_eq_pow_mod_two, hp2, _root_.pow_one,
-        iff_false_intro (zmodp.ne_neg_self hp hp1 one_ne_zero).symm, false_iff,
-        not_not],
-      rw [← nat.mod_mul_right_div_self, show 2 * 2 = 4, from rfl] at hp2,
-      rw [← nat.mod_mul_left_mod _ 2, show 2 * 2 = 4, from rfl] at hp1,
-      have hp4 : p % 4 < 4, from nat.mod_lt _ dec_trivial,
-      revert hp1 hp2, revert hp4,
-      generalize : p % 4 = k,
-      revert k, exact dec_trivial
-    end))
-
-lemma pow_div_two_eq_neg_one_or_one {a : zmodp p hp} (ha : a ≠ 0) : a ^ (p / 2) = 1 ∨ a ^ (p / 2) = -1 :=
-hp.eq_two_or_odd.elim
-  (λ h, by revert a ha; resetI; subst h; exact dec_trivial)
-  (λ hp1, by rw [← mul_self_eq_one_iff, ← _root_.pow_add, ← two_mul, two_mul_odd_div_two hp1];
-    exact fermat_little hp ha)
-
-@[simp] lemma wilsons_lemma {p : ℕ} (hp : nat.prime p) : (fact (p - 1) : zmodp p hp) = -1 :=
+/-- Fermat's Little Theorem: for all nonzero `a : zmod p`, we have `a ^ (p - 1) = 1`. -/
+theorem fermat_little {a : zmod p} (ha : a ≠ 0) : a ^ (p - 1) = 1 :=
 begin
-  rw [← finset.prod_Ico_id_eq_fact, ← @units.coe_one (zmodp p hp), ← units.coe_neg,
-    ← @prod_univ_units_id_eq_neg_one (zmodp p hp),
-    ← prod_hom _ (coe : units (zmodp p hp) → zmodp p hp),
-    prod_nat_cast],
-  exact eq.symm (prod_bij
-    (λ a _, (a : zmodp p hp).1)
-    (λ a ha, Ico.mem.2 ⟨nat.pos_of_ne_zero
-        (λ h, units.coe_ne_zero a (fin.eq_of_veq h)),
-      by rw [← succ_sub hp.pos, succ_sub_one]; exact (a : zmodp p hp).2⟩)
-    (λ a _, by simp) (λ _ _ _ _, units.ext_iff.2 ∘ fin.eq_of_veq)
-    (λ b hb,
-      have b ≠ 0 ∧ b < p, by rwa [Ico.mem, nat.succ_le_iff, ← succ_sub hp.pos,
-        succ_sub_one, nat.pos_iff_ne_zero] at hb,
-      ⟨units.mk0 _ (show (b : zmodp p hp) ≠ 0, from fin.ne_of_vne $
-        by rw [zmod.val_cast_nat, ← @nat.cast_zero (zmodp p hp), zmod.val_cast_nat];
-        simp [mod_eq_of_lt this.2, this.1]), mem_univ _,
-      by simp [val_cast_of_lt hp this.2]⟩))
+  have := fermat_little_units (units.mk0 a ha),
+  apply_fun (coe : units (zmod p) → zmod p) at this,
+  simpa,
 end
 
-@[simp] lemma prod_Ico_one_prime {p : ℕ} (hp : nat.prime p) :
-  (Ico 1 p).prod (λ x, (x : zmodp p hp)) = -1 :=
+/-- Euler's Criterion: A unit `x` of `zmod p` is a square if and only if `x ^ (p / 2) = 1`. -/
+lemma euler_criterion_units (x : units (zmod p)) :
+  (∃ y : units (zmod p), y ^ 2 = x) ↔ x ^ (p / 2) = 1 :=
+begin
+  cases nat.prime.eq_two_or_odd ‹p.prime› with hp2 hp_odd,
+  { resetI, subst p, refine iff_of_true ⟨1, _⟩ _; apply subsingleton.elim  },
+  obtain ⟨g, hg⟩ := is_cyclic.exists_generator (units (zmod p)),
+  obtain ⟨n, hn⟩ : x ∈ powers g, { rw powers_eq_gpowers, apply hg },
+  split,
+  { rintro ⟨y, rfl⟩, rw [← pow_mul, two_mul_odd_div_two hp_odd, fermat_little_units], },
+  { subst x, assume h,
+    have key : 2 * (p / 2) ∣ n * (p / 2),
+    { rw [← pow_mul] at h,
+      rw [two_mul_odd_div_two hp_odd, ← card_units, ← order_of_eq_card_of_forall_mem_gpowers hg],
+      apply order_of_dvd_of_pow_eq_one h },
+    have : 0 < p / 2 := nat.div_pos (show fact (1 < p), by apply_instance) dec_trivial,
+    obtain ⟨m, rfl⟩ := dvd_of_mul_dvd_mul_right this key,
+    refine ⟨g ^ m, _⟩,
+    rw [mul_comm, pow_mul], },
+end
+
+/-- Euler's Criterion: a nonzero `a : zmod p` is a square if and only if `x ^ (p / 2) = 1`. -/
+lemma euler_criterion {a : zmod p} (ha : a ≠ 0) :
+  (∃ y : zmod p, y ^ 2 = a) ↔ a ^ (p / 2) = 1 :=
+begin
+  apply (iff_congr _ (by simp [units.ext_iff])).mp (euler_criterion_units p (units.mk0 a ha)),
+  simp only [units.ext_iff, _root_.pow_two, units.coe_mk0, units.coe_mul],
+  split, { rintro ⟨y, hy⟩, exact ⟨y, hy⟩ },
+  { rintro ⟨y, rfl⟩,
+    have hy : y ≠ 0, { rintro rfl, simpa [_root_.zero_pow] using ha, },
+    refine ⟨units.mk0 y hy, _⟩, simp, }
+end
+
+lemma exists_pow_two_eq_neg_one_iff_mod_four_ne_three :
+  (∃ y : zmod p, y ^ 2 = -1) ↔ p % 4 ≠ 3 :=
+begin
+  cases nat.prime.eq_two_or_odd ‹p.prime› with hp2 hp_odd,
+  { resetI, subst p, exact dec_trivial },
+  change fact (p % 2 = 1) at hp_odd, resetI,
+  have neg_one_ne_zero : (-1 : zmod p) ≠ 0, from mt neg_eq_zero.1 one_ne_zero,
+  rw [euler_criterion p neg_one_ne_zero, neg_one_pow_eq_pow_mod_two],
+  cases mod_two_eq_zero_or_one (p / 2) with p_half_even p_half_odd,
+  { rw [p_half_even, _root_.pow_zero, eq_self_iff_true, true_iff],
+    contrapose! p_half_even with hp,
+    rw [← nat.mod_mul_right_div_self, show 2 * 2 = 4, from rfl, hp],
+    exact dec_trivial },
+  { rw [p_half_odd, _root_.pow_one,
+        iff_false_intro (zmod.ne_neg_self p one_ne_zero).symm, false_iff, not_not],
+    rw [← nat.mod_mul_right_div_self, show 2 * 2 = 4, from rfl] at p_half_odd,
+    rw [_root_.fact, ← nat.mod_mul_left_mod _ 2, show 2 * 2 = 4, from rfl] at hp_odd,
+    have hp : p % 4 < 4, from nat.mod_lt _ dec_trivial,
+    revert hp hp_odd p_half_odd,
+    generalize : p % 4 = k, revert k, exact dec_trivial }
+end
+
+lemma pow_div_two_eq_neg_one_or_one {a : zmod p} (ha : a ≠ 0) :
+  a ^ (p / 2) = 1 ∨ a ^ (p / 2) = -1 :=
+begin
+  cases nat.prime.eq_two_or_odd ‹p.prime› with hp2 hp_odd,
+  { resetI, subst p, revert a ha, exact dec_trivial },
+  rw [← mul_self_eq_one_iff, ← _root_.pow_add, ← two_mul, two_mul_odd_div_two hp_odd],
+  exact fermat_little p ha
+end
+
+/-- Wilson's Lemma: the product of `1`, ..., `p-1` is `-1` modulo `p`. -/
+@[simp] lemma wilsons_lemma (p : ℕ) [hp : fact p.prime] : (nat.fact (p - 1) : zmod p) = -1 :=
+begin
+  refine
+  calc (nat.fact (p - 1) : zmod p) = (Ico 1 (succ (p - 1))).prod (λ (x : ℕ), x) :
+    by rw [← finset.prod_Ico_id_eq_fact, prod_nat_cast]
+                               ... = finset.univ.prod (λ x : units (zmod p), x) : _
+                               ... = -1 :
+    by rw [prod_hom _ (coe : units (zmod p) → zmod p),
+           prod_univ_units_id_eq_neg_one, units.coe_neg, units.coe_one],
+  symmetry,
+  refine prod_bij (λ a _, (a : zmod p).val) _ _ _ _,
+  { intros a ha,
+    rw [Ico.mem, ← nat.succ_sub hp.pos, nat.succ_sub_one],
+    split,
+    { apply nat.pos_of_ne_zero, rw ← @val_zero p,
+      assume h, apply units.coe_ne_zero a (val_injective p h) },
+    { exact zmod.val_lt _ } },
+  { intros a ha, simp only [cast_id, nat_cast_val], },
+  { intros _ _ _ _ h, rw units.ext_iff, exact val_injective p h },
+  { intros b hb,
+    rw [Ico.mem, nat.succ_le_iff, ← succ_sub hp.pos, succ_sub_one, nat.pos_iff_ne_zero] at hb,
+    refine ⟨units.mk0 b _, finset.mem_univ _, _⟩,
+    { assume h, apply hb.1, apply_fun zmod.val at h,
+      simpa only [val_cast_of_lt hb.right, val_zero] using h },
+    { simp only [val_cast_of_lt hb.right, units.coe_mk0], } }
+end
+
+@[simp] lemma prod_Ico_one_prime (p : ℕ) [hp : fact p.prime] :
+  (Ico 1 p).prod (λ x, (x : zmod p)) = -1 :=
 by conv in (Ico 1 p) { rw [← succ_sub_one p, succ_sub hp.pos] };
   rw [← prod_nat_cast, finset.prod_Ico_id_eq_fact, wilsons_lemma]
 
-end zmodp
+end zmod
 
 /-- The image of the map sending a non zero natural number `x ≤ p / 2` to the absolute value
   of the element of interger in the interval `(-p/2, p/2]` congruent to `a * x` mod p is the set
