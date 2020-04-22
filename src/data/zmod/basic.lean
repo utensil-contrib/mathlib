@@ -225,19 +225,6 @@ by { cases n; refl }
 
 end
 
-variables [ring R] [char_p R n]
-
-@[simp] lemma cast_one : ((1 : zmod n) : R) = 1 :=
-begin
-  unfreezeI,
-  cases n, { exact int.cast_one },
-  show ((1 % (n+1) : ℕ) : R) = 1,
-  cases n, { apply subsingleton.elim },
-  rw nat.mod_eq_of_lt,
-  { exact nat.cast_one },
-  exact nat.lt_of_sub_eq_succ rfl
-end
-
 -- move this
 lemma dvd_sub_mod (k : ℕ) : n ∣ (k - (k % n)) :=
 ⟨k / n, nat.sub_eq_of_eq_add (nat.mod_add_div k n).symm⟩
@@ -286,6 +273,34 @@ begin
   { apply nat.mod_le }
 end
 
+@[simp, norm_cast]
+lemma cast_id : ∀ n (i : zmod n), ↑i = i
+| 0     i := int.cast_id i
+| (n+1) i := cast_val i
+
+variables [ring R]
+
+@[simp] lemma nat_cast_val [fact (0 < n)] (i : zmod n) :
+  (i.val : R) = i :=
+begin
+  unfreezeI, cases n,
+  { exfalso, exact nat.not_lt_zero 0 ‹0 < 0› },
+  refl
+end
+
+variable [char_p R n]
+
+@[simp] lemma cast_one : ((1 : zmod n) : R) = 1 :=
+begin
+  unfreezeI,
+  cases n, { exact int.cast_one },
+  show ((1 % (n+1) : ℕ) : R) = 1,
+  cases n, { apply subsingleton.elim },
+  rw nat.mod_eq_of_lt,
+  { exact nat.cast_one },
+  exact nat.lt_of_sub_eq_succ rfl
+end
+
 @[simp] lemma cast_add (a b : zmod n) : ((a + b : zmod n) : R) = a + b :=
 begin
   unfreezeI,
@@ -319,6 +334,13 @@ def cast_hom (n : ℕ) (R : Type*) [ring R] [char_p R n] : zmod n →+* R :=
 
 @[simp] lemma cast_hom_apply (i : zmod n) : cast_hom n R i = i := rfl
 
+@[simp, norm_cast]
+lemma cast_nat_cast (k : ℕ) : ((k : zmod n) : R) = k :=
+(cast_hom n R).map_nat_cast k
+
+@[simp, norm_cast]
+lemma cast_int_cast (k : ℤ) : ((k : zmod n) : R) = k :=
+(cast_hom n R).map_int_cast k
 
 end universal_property
 
@@ -357,16 +379,12 @@ begin
   { apply fin.val_mul }
 end
 
-instance (n : ℕ) [fact (1 < n)] : zero_ne_one_class (zmod n) :=
-{ zero := 0,
-  one  := 1,
-  zero_ne_one :=
-  begin
-    assume h,
-    apply_fun zmod.val at h,
-    rw [val_zero, val_one] at h,
-    exact zero_ne_one h,
-  end }
+instance nonzero_comm_ring (n : ℕ) [fact (1 < n)] : nonzero_comm_ring (zmod n) :=
+{ zero_ne_one := assume h, zero_ne_one $
+   calc 0 = (0 : zmod n).val : by rw val_zero
+      ... = (1 : zmod n).val : congr_arg zmod.val h
+      ... = 1                : val_one n,
+  .. zmod.comm_ring n }
 
 def inv : Π (n : ℕ), zmod n → zmod n
 | 0     i := int.sign i
