@@ -32,12 +32,12 @@ calc 2 * 2 * m = (x - y)^2 + (x + y)^2 : by rw [mul_assoc, h]; ring
 ... = 2 * 2 * (((x - y) / 2) ^ 2 + ((x + y) / 2) ^ 2) :
   by simp [mul_add, _root_.pow_succ, mul_comm, mul_assoc, mul_left_comm]
 
-lemma exists_sum_two_squares_add_one_eq_k {p : ℕ} (hp : p.prime) :
+lemma exists_sum_two_squares_add_one_eq_k (p : ℕ) [hp : fact p.prime] :
   ∃ (a b : ℤ) (k : ℕ), a^2 + b^2 + 1 = k * p ∧ k < p :=
 hp.eq_two_or_odd.elim (λ hp2, hp2.symm ▸ ⟨1, 0, 1, rfl, dec_trivial⟩) $ λ hp1,
-let ⟨a, b, hab⟩ := zmodp.sum_two_squares hp (-1) in
+let ⟨a, b, hab⟩ := zmod.sum_two_squares p (-1) in
 have hab' : (p : ℤ) ∣ a.val_min_abs ^ 2 + b.val_min_abs ^ 2 + 1,
-  from (zmodp.eq_zero_iff_dvd_int hp _).1 $ by simpa [eq_neg_iff_add_eq_zero] using hab,
+  from (char_p.int_cast_eq_zero_iff (zmod p) p _).1 $ by simpa [eq_neg_iff_add_eq_zero] using hab,
 let ⟨k, hk⟩ := hab' in
 have hk0 : 0 ≤ k, from nonneg_of_mul_nonneg_left
   (by rw ← hk; exact (add_nonneg (add_nonneg (pow_two_nonneg _) (pow_two_nonneg _)) zero_le_one))
@@ -52,8 +52,8 @@ have hk0 : 0 ≤ k, from nonneg_of_mul_nonneg_left
       ... ≤ (p / 2) ^ 2 + (p / 2)^2 + 1 :
         add_le_add
           (add_le_add
-            (nat.pow_le_pow_of_le_left (zmodp.nat_abs_val_min_abs_le _) _)
-            (nat.pow_le_pow_of_le_left (zmodp.nat_abs_val_min_abs_le _) _))
+            (nat.pow_le_pow_of_le_left (zmod.nat_abs_val_min_abs_le _) _)
+            (nat.pow_le_pow_of_le_left (zmod.nat_abs_val_min_abs_le _) _))
           (le_refl _)
       ... < (p / 2) ^ 2 + (p / 2)^ 2 + (p % 2)^2 + ((2 * (p / 2)^2 + (4 * (p / 2) * (p % 2)))) :
         by rw [hp1, nat.one_pow, mul_one];
@@ -96,10 +96,10 @@ let ⟨x, hx⟩ := h01 in let ⟨y, hy⟩ := h23 in
     simpa [finset.sum_eq_multiset_sum, fin4univ, multiset.sum_cons, f]
   end⟩
 
-private lemma prime_sum_four_squares {p : ℕ} (hp : p.prime) :
+private lemma prime_sum_four_squares (p : ℕ) [hp : _root_.fact p.prime] :
   ∃ a b c d : ℤ, a^2 + b^2 + c^2 + d^2 = p :=
 have hm : ∃ m < p, 0 < m ∧ ∃ a b c d : ℤ, a^2 + b^2 + c^2 + d^2 = m * p,
-  from let ⟨a, b, k, hk⟩ := exists_sum_two_squares_add_one_eq_k hp in
+  from let ⟨a, b, k, hk⟩ := exists_sum_two_squares_add_one_eq_k p in
   ⟨k, hk.2, nat.pos_of_ne_zero $
     (λ hk0, by rw [hk0, int.coe_nat_zero, zero_mul] at hk;
       exact ne_of_gt (show a^2 + b^2 + 1 > 0, from add_pos_of_nonneg_of_pos
@@ -107,12 +107,12 @@ have hm : ∃ m < p, 0 < m ∧ ∃ a b c d : ℤ, a^2 + b^2 + c^2 + d^2 = m * p,
     a, b, 1, 0, by simpa [_root_.pow_two] using hk.1⟩,
 let m := nat.find hm in
 let ⟨a, b, c, d, (habcd : a^2 + b^2 + c^2 + d^2 = m * p)⟩ := (nat.find_spec hm).snd.2 in
-have hm0 : 0 < m, from (nat.find_spec hm).snd.1,
+by haveI hm0 : _root_.fact (0 < m) := (nat.find_spec hm).snd.1; exact
 have hmp : m < p, from (nat.find_spec hm).fst,
 m.mod_two_eq_zero_or_one.elim
   (λ hm2 : m % 2 = 0,
     let ⟨k, hk⟩ := (nat.dvd_iff_mod_eq_zero _ _).2 hm2 in
-    have hk0 : 0 < k, from nat.pos_of_ne_zero $ λ _, by simp [*, lt_irrefl] at *,
+    have hk0 : 0 < k, from nat.pos_of_ne_zero $ λ _, by { simp [*, lt_irrefl] at *, exact hm0 },
     have hkm : k < m, by rw [hk, two_mul]; exact (lt_add_iff_pos_left _).2 hk0,
     false.elim $ nat.find_min hm hkm ⟨lt_trans hkm hmp, hk0,
       sum_four_squares_of_two_mul_sum_four_squares
@@ -122,8 +122,8 @@ m.mod_two_eq_zero_or_one.elim
     if hm1 : m = 1 then ⟨a, b, c, d, by simp only [hm1, habcd, int.coe_nat_one, one_mul]⟩
     else --have hm1 : 1 < m, from lt_of_le_of_ne hm0 (ne.symm hm1),
       let mp : ℕ+ := ⟨m, hm0⟩ in
-      let w := (a : zmod mp).val_min_abs, x := (b : zmod mp).val_min_abs,
-          y := (c : zmod mp).val_min_abs, z := (d : zmod mp).val_min_abs in
+      let w := (a : zmod m).val_min_abs, x := (b : zmod m).val_min_abs,
+          y := (c : zmod m).val_min_abs, z := (d : zmod m).val_min_abs in
       have hnat_abs : w^2 + x^2 + y^2 + z^2 =
           (w.nat_abs^2 + x.nat_abs^2 + y.nat_abs ^2 + z.nat_abs ^ 2 : ℕ),
         by simp [_root_.pow_two],
@@ -148,7 +148,7 @@ m.mod_two_eq_zero_or_one.elim
         by simp [w, x, y, z, pow_two],
       have hwxyz0 : ((w^2 + x^2 + y^2 + z^2 : ℤ) : zmod mp) = 0,
         by rw [hwxyzabcd, habcd, int.cast_mul, show ((m : ℤ) : zmod mp) = (mp : zmod mp), from rfl,
-          int.cast_coe_nat, coe_coe, zmod.cast_self_eq_zero]; simp,
+          int.cast_coe_nat, coe_coe, zmod.cast_self]; simp,
       let ⟨n, hn⟩ := (zmod.eq_zero_iff_dvd_int.1 hwxyz0) in
       have hn0 : 0 < n.nat_abs, from int.nat_abs_pos_of_ne_zero (λ hn0,
         have hwxyz0 : (w.nat_abs^2 + x.nat_abs^2 + y.nat_abs^2 + z.nat_abs^2 : ℕ) = 0,
@@ -190,15 +190,16 @@ m.mod_two_eq_zero_or_one.elim
             by simp only [hs.symm, ht.symm, hu.symm, hv.symm]; ring
           ... = _ : by rw [hn, habcd, int.nat_abs_of_nonneg hn_nonneg]; dsimp [mp]; ring,
       false.elim $ nat.find_min hm hnm ⟨lt_trans hnm hmp, hn0, s, t, u, v, hstuv⟩)
+.
 
 lemma sum_four_squares : ∀ n : ℕ, ∃ a b c d : ℕ, a^2 + b^2 + c^2 + d^2 = n
 | 0 := ⟨0, 0, 0, 0, rfl⟩
 | 1 := ⟨1, 0, 0, 0, rfl⟩
 | n@(k+2) :=
-have hm : (min_fac n).prime := min_fac_prime dec_trivial,
+have hm : _root_.fact (min_fac (k+2)).prime := min_fac_prime dec_trivial,
 have n / min_fac n < n := factors_lemma,
 let ⟨a, b, c, d, h₁⟩ := show ∃ a b c d : ℤ, a^2 + b^2 + c^2 + d^2 = min_fac n,
-  from prime_sum_four_squares hm in
+  by exactI prime_sum_four_squares (min_fac (k+2)) in
 let ⟨w, x, y, z, h₂⟩ := sum_four_squares (n / min_fac n) in
 ⟨(a * x - b * w - c * z + d * y).nat_abs,
  (a * y + b * z - c * w - d * x).nat_abs,

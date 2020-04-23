@@ -133,7 +133,7 @@ namespace zmod
 
 open finite_field
 
-lemma sum_two_squares {p : ℕ} [hp : fact p.prime] (x : zmod p) :
+lemma sum_two_squares (p : ℕ) [hp : fact p.prime] (x : zmod p) :
   ∃ a b : zmod p, a^2 + b^2 = x :=
 begin
   cases hp.eq_two_or_odd with hp2 hp_odd,
@@ -158,11 +158,11 @@ lemma prime_of_pos_char_p_integral_domain (R : Type*) [integral_domain R]
   fact n.prime :=
 (char_p.char_is_prime_or_zero R _).resolve_right (nat.pos_iff_ne_zero.1 ‹0 < n›)
 
-lemma sum_two_squares {R : Type*} [integral_domain R] {p : ℕ} [fact (0 < p)] [char_p R p] (x : ℤ) :
+lemma sum_two_squares (R : Type*) [integral_domain R] (p : ℕ) [fact (0 < p)] [char_p R p] (x : ℤ) :
   ∃ a b : ℕ, (a^2 + b^2 : R) = x :=
 begin
   haveI := prime_of_pos_char_p_integral_domain R p,
-  obtain ⟨a, b, hab⟩ := zmod.sum_two_squares (x : zmod p),
+  obtain ⟨a, b, hab⟩ := zmod.sum_two_squares p x,
   refine ⟨a.val, b.val, _⟩,
   have := congr_arg (zmod.cast_hom p R) hab,
   simpa only [zmod.cast_int_cast, zmod.cast_hom_apply, zmod.cast_add,
