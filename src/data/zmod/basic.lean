@@ -665,9 +665,6 @@ lemma val_eq_ite_val_min_abs {n : ℕ} [fact (0 < n)] (a : zmod n) :
   (a.val : ℤ) = a.val_min_abs + if a.val ≤ n / 2 then 0 else n :=
 by { rw [zmod.val_min_abs_def_pos], split_ifs; simp only [add_zero, sub_add_cancel] }
 
-lemma eq_zero_iff_dvd_int {n : ℕ} {a : ℤ} : (a : zmod n) = 0 ↔ ((n : ℕ) : ℤ) ∣ a :=
-by rw [← @int.cast_zero (zmod n), eq_iff_modeq_int, int.modeq.modeq_zero_iff]
-
 lemma prime_ne_zero (p q : ℕ) [hp : fact p.prime] [hq : fact q.prime] (hpq : p ≠ q) :
   (q : zmod p) ≠ 0 :=
 by rwa [← nat.cast_zero, ne.def, eq_iff_modeq_nat, nat.modeq.modeq_zero_iff,
