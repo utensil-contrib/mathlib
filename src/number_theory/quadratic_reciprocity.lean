@@ -257,8 +257,7 @@ calc (((Ico 1 (p / 2).succ).sum (λ x, a * x) : ℕ) : zmod 2)
   ... = ((Ico 1 (p / 2).succ).filter
         (λ x : ℕ, p / 2 < (a * x : zmod p).val)).card +
       (((Ico 1 (p / 2).succ).sum (λ x, (a * x : zmod p).val_min_abs.nat_abs)) : ℕ) :
-    by { simp [ite_cast, add_comm, sum_add_distrib, finset.sum_ite, hp2, sum_nat_cast],
-      sorry }
+    by { simp [ite_cast, add_comm, sum_add_distrib, finset.sum_ite, hp2, sum_nat_cast], }
   ... = _ : by rw [finset.sum_eq_multiset_sum,
       Ico_map_val_min_abs_nat_abs_eq_Ico_map_id p a hap,
       ← finset.sum_eq_multiset_sum];

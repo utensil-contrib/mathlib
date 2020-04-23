@@ -81,9 +81,9 @@ let ⟨i, hσ⟩ := this (coe ∘ f) (by rw [← @zero_mul (zmod 2) _ m, ← sho
   ← int.cast_mul, ← h]; simp only [int.cast_add, int.cast_pow]; refl) in
 let σ := swap i 0 in
 have h01 : 2 ∣ f (σ 0) ^ 2 + f (σ 1) ^ 2,
-  from (@zmod.eq_zero_iff_dvd_int 2 _).1 $ by simpa [σ] using hσ.1,
+  from (char_p.int_cast_eq_zero_iff (zmod 2) 2 _).1 $ by simpa [σ] using hσ.1,
 have h23 : 2 ∣ f (σ 2) ^ 2 + f (σ 3) ^ 2,
-  from (@zmod.eq_zero_iff_dvd_int 2 _).1 $ by simpa using hσ.2,
+  from (char_p.int_cast_eq_zero_iff (zmod 2) 2 _).1 $ by simpa using hσ.2,
 let ⟨x, hx⟩ := h01 in let ⟨y, hy⟩ := h23 in
 ⟨(f (σ 0) - f (σ 1)) / 2, (f (σ 0) + f (σ 1)) / 2, (f (σ 2) - f (σ 3)) / 2, (f (σ 2) + f (σ 3)) / 2,
   begin
@@ -121,7 +121,7 @@ m.mod_two_eq_zero_or_one.elim
   (λ hm2 : m % 2 = 1,
     if hm1 : m = 1 then ⟨a, b, c, d, by simp only [hm1, habcd, int.coe_nat_one, one_mul]⟩
     else --have hm1 : 1 < m, from lt_of_le_of_ne hm0 (ne.symm hm1),
-      let mp : ℕ+ := ⟨m, hm0⟩ in
+      -- let mp : ℕ+ := ⟨m, hm0⟩ in
       let w := (a : zmod m).val_min_abs, x := (b : zmod m).val_min_abs,
           y := (c : zmod m).val_min_abs, z := (d : zmod m).val_min_abs in
       have hnat_abs : w^2 + x^2 + y^2 + z^2 =
@@ -143,19 +143,18 @@ m.mod_two_eq_zero_or_one.elim
         ... = m ^ 2 : by conv_rhs {rw [← nat.mod_add_div m 2]};
           simp [-nat.mod_add_div, mul_add, add_mul, bit0, bit1, mul_comm, mul_assoc, mul_left_comm,
             _root_.pow_add, add_comm, add_left_comm],
-      have hwxyzabcd : ((w^2 + x^2 + y^2 + z^2 : ℤ) : zmod mp) =
-          ((a^2 + b^2 + c^2 + d^2 : ℤ) : zmod mp),
+      have hwxyzabcd : ((w^2 + x^2 + y^2 + z^2 : ℤ) : zmod m) =
+          ((a^2 + b^2 + c^2 + d^2 : ℤ) : zmod m),
         by simp [w, x, y, z, pow_two],
-      have hwxyz0 : ((w^2 + x^2 + y^2 + z^2 : ℤ) : zmod mp) = 0,
-        by rw [hwxyzabcd, habcd, int.cast_mul, show ((m : ℤ) : zmod mp) = (mp : zmod mp), from rfl,
-          int.cast_coe_nat, coe_coe, zmod.cast_self]; simp,
-      let ⟨n, hn⟩ := (zmod.eq_zero_iff_dvd_int.1 hwxyz0) in
+      have hwxyz0 : ((w^2 + x^2 + y^2 + z^2 : ℤ) : zmod m) = 0,
+        by rw [hwxyzabcd, habcd, int.cast_mul, cast_coe_nat, zmod.cast_self, zero_mul],
+      let ⟨n, hn⟩ := ((char_p.int_cast_eq_zero_iff _ m _).1 hwxyz0) in
       have hn0 : 0 < n.nat_abs, from int.nat_abs_pos_of_ne_zero (λ hn0,
         have hwxyz0 : (w.nat_abs^2 + x.nat_abs^2 + y.nat_abs^2 + z.nat_abs^2 : ℕ) = 0,
-          by rw [← int.coe_nat_eq_zero, ← hnat_abs]; rwa [hn0, mul_zero] at hn,
+          by { rw [← int.coe_nat_eq_zero, ← hnat_abs], rwa [hn0, mul_zero] at hn },
         have habcd0 : (m : ℤ) ∣ a ∧ (m : ℤ) ∣ b ∧ (m : ℤ) ∣ c ∧ (m : ℤ) ∣ d,
           by simpa [add_eq_zero_iff_eq_zero_of_nonneg (pow_two_nonneg _) (pow_two_nonneg _),
-            nat.pow_two, w, x, y, z, zmod.eq_zero_iff_dvd_int] using hwxyz0,
+            nat.pow_two, w, x, y, z, (char_p.int_cast_eq_zero_iff _ m _)] using hwxyz0,
         let ⟨ma, hma⟩ := habcd0.1,     ⟨mb, hmb⟩ := habcd0.2.1,
             ⟨mc, hmc⟩ := habcd0.2.2.1, ⟨md, hmd⟩ := habcd0.2.2.2 in
         have hmdvdp : m ∣ p,
@@ -163,32 +162,32 @@ m.mod_two_eq_zero_or_one.elim
             (domain.mul_left_inj (show (m : ℤ) ≠ 0, from int.coe_nat_ne_zero_iff_pos.2 hm0)).1 $
               by rw [← habcd, hma, hmb, hmc, hmd]; ring⟩,
         (hp.2 _ hmdvdp).elim hm1 (λ hmeqp, by simpa [lt_irrefl, hmeqp] using hmp)),
-      have hawbxcydz : ((mp : ℕ) : ℤ) ∣ a * w + b * x + c * y + d * z,
-        from zmod.eq_zero_iff_dvd_int.1 $ by rw [← hwxyz0]; simp; ring,
-      have haxbwczdy : ((mp : ℕ) : ℤ) ∣ a * x - b * w - c * z + d * y,
-        from zmod.eq_zero_iff_dvd_int.1 $ by simp [sub_eq_add_neg]; ring,
-      have haybzcwdx : ((mp : ℕ) : ℤ) ∣ a * y + b * z - c * w - d * x,
-        from zmod.eq_zero_iff_dvd_int.1 $ by simp [sub_eq_add_neg]; ring,
-      have hazbycxdw : ((mp : ℕ) : ℤ) ∣ a * z - b * y + c * x - d * w,
-        from zmod.eq_zero_iff_dvd_int.1 $ by simp [sub_eq_add_neg]; ring,
+      have hawbxcydz : ((m : ℕ) : ℤ) ∣ a * w + b * x + c * y + d * z,
+        from (char_p.int_cast_eq_zero_iff _ m _).1 $ by rw [← hwxyz0]; simp; ring,
+      have haxbwczdy : ((m : ℕ) : ℤ) ∣ a * x - b * w - c * z + d * y,
+        from (char_p.int_cast_eq_zero_iff _ m _).1 $ by { simp [sub_eq_add_neg], ring, },
+      have haybzcwdx : ((m : ℕ) : ℤ) ∣ a * y + b * z - c * w - d * x,
+        from (char_p.int_cast_eq_zero_iff _ m _).1 $ by simp [sub_eq_add_neg]; ring,
+      have hazbycxdw : ((m : ℕ) : ℤ) ∣ a * z - b * y + c * x - d * w,
+        from (char_p.int_cast_eq_zero_iff _ m _).1 $ by simp [sub_eq_add_neg]; ring,
       let ⟨s, hs⟩ := hawbxcydz, ⟨t, ht⟩ := haxbwczdy, ⟨u, hu⟩ := haybzcwdx, ⟨v, hv⟩ := hazbycxdw in
       have hn_nonneg : 0 ≤ n,
         from nonneg_of_mul_nonneg_left
           (by erw [← hn]; repeat {try {refine add_nonneg _ _}, try {exact pow_two_nonneg _}})
           (int.coe_nat_pos.2 hm0),
-      have hnm : n.nat_abs < mp,
+      have hnm : n.nat_abs < m,
         from int.coe_nat_lt.1 (lt_of_mul_lt_mul_left
           (by rw [int.nat_abs_of_nonneg hn_nonneg, ← hn, ← _root_.pow_two]; exact hwxyzlt)
-          (int.coe_nat_nonneg mp)),
+          (int.coe_nat_nonneg m)),
       have hstuv : s^2 + t^2 + u^2 + v^2 = n.nat_abs * p,
         from (domain.mul_left_inj (show (m^2 : ℤ) ≠ 0, from pow_ne_zero 2
             (int.coe_nat_ne_zero_iff_pos.2 hm0))).1 $
-          calc (m : ℤ)^2 * (s^2 + t^2 + u^2 + v^2) = ((mp : ℕ) * s)^2 + ((mp : ℕ) * t)^2 +
-              ((mp : ℕ) * u)^2 + ((mp : ℕ) * v)^2 :
+          calc (m : ℤ)^2 * (s^2 + t^2 + u^2 + v^2) = ((m : ℕ) * s)^2 + ((m : ℕ) * t)^2 +
+              ((m : ℕ) * u)^2 + ((m : ℕ) * v)^2 :
             by simp [mp]; ring
           ... = (w^2 + x^2 + y^2 + z^2) * (a^2 + b^2 + c^2 + d^2) :
             by simp only [hs.symm, ht.symm, hu.symm, hv.symm]; ring
-          ... = _ : by rw [hn, habcd, int.nat_abs_of_nonneg hn_nonneg]; dsimp [mp]; ring,
+          ... = _ : by rw [hn, habcd, int.nat_abs_of_nonneg hn_nonneg]; dsimp [m]; ring,
       false.elim $ nat.find_min hm hnm ⟨lt_trans hnm hmp, hn0, s, t, u, v, hstuv⟩)
 .
 

@@ -537,6 +537,13 @@ end
 
 @[simp] lemma neg_eq_self_mod_two : ∀ (a : zmod 2), -a = a := dec_trivial
 
+@[simp] lemma nat_abs_mod_two (a : ℤ) : (a.nat_abs : zmod 2) = a :=
+begin
+  cases a,
+  { simp only [int.nat_abs_of_nat, int.cast_coe_nat, int.of_nat_eq_coe] },
+  { simp only [neg_eq_self_mod_two, nat.cast_succ, int.nat_abs, int.cast_neg_succ_of_nat] }
+end
+
 @[simp] lemma val_eq_zero : ∀ {n : ℕ} (a : zmod n), a.val = 0 ↔ a = 0
 | 0     a := int.nat_abs_eq_zero
 | (n+1) a := by { rw fin.ext_iff, exact iff.rfl }
