@@ -31,7 +31,7 @@ begin
 end
 
 lemma card_modeq_card_fixed_points [fintype α] [fintype G] [fintype (fixed_points G α)]
-  {p n : ℕ} [hp : fact p.prime] (h : card G = p ^ n) : card α ≡ card (fixed_points G α) [MOD p] :=
+  (p : ℕ) {n : ℕ} [hp : fact p.prime] (h : card G = p ^ n) : card α ≡ card (fixed_points G α) [MOD p] :=
 calc card α = card (Σ y : quotient (orbit_rel G α), {x // quotient.mk' x = y}) :
   card_congr (sigma_preimage_equiv (@quotient.mk' _ (orbit_rel G α))).symm
 ... = univ.sum (λ a : quotient (orbit_rel G α), card {x // quotient.mk' x = a}) : card_sigma _
@@ -154,8 +154,8 @@ let ⟨⟨⟨⟨x, hx₁⟩, hx₂⟩, hx₃⟩, hx₄⟩ := fintype.exists_ne_o
 have hx : x ≠ list.repeat (1 : G) p, from λ h, by simpa [h, vector.repeat] using hx₄,
 have nG : nonempty G, from ⟨1⟩,
 have ∃ a, x = list.repeat a x.length := by exactI rotate_eq_self_iff_eq_repeat.1 (λ n,
-  have list.rotate x (n : zmod p').val = x :=
-    subtype.mk.inj (subtype.mk.inj (hx₃ (n : zmod p'))),
+  have list.rotate x (n : zmod p).val = x :=
+    subtype.mk.inj (subtype.mk.inj (hx₃ (n : zmod p))),
   by rwa [zmod.val_cast_nat, ← hx₁, rotate_mod] at this),
 let ⟨a, ha⟩ := this in
 ⟨a, have hx1 : x.prod = 1 := hx₂,
@@ -188,7 +188,7 @@ def fixed_points_mul_left_cosets_equiv_quotient (H : set G) [is_subgroup H] [fin
 
 local attribute [instance] set_fintype
 
-lemma exists_subgroup_card_pow_prime [fintype G] {p : ℕ} : ∀ {n : ℕ} (hp : nat.prime p)
+lemma exists_subgroup_card_pow_prime [fintype G] (p : ℕ) : ∀ {n : ℕ} (hp : fact p.prime)
   (hdvd : p ^ n ∣ card G), ∃ H : set G, is_subgroup H ∧ fintype.card H = p ^ n
 | 0 := λ _ _, ⟨trivial G, by apply_instance, by simp⟩
 | (n+1) := λ hp hdvd,
@@ -203,7 +203,7 @@ have hcard : card (quotient H) = s * p :=
       nat.pow_succ, mul_assoc, mul_comm p]),
 have hm : s * p % p = card (quotient (subtype.val ⁻¹' H : set (normalizer H))) % p :=
   card_congr (fixed_points_mul_left_cosets_equiv_quotient H) ▸ hcard ▸
-    card_modeq_card_fixed_points hp hH2,
+    card_modeq_card_fixed_points p hH2,
 have hm' : p ∣ card (quotient (subtype.val ⁻¹' H : set (normalizer H))) :=
   nat.dvd_of_mod_eq_zero
     (by rwa [nat.mod_eq_zero_of_dvd (dvd_mul_left _ _), eq_comm] at hm),
