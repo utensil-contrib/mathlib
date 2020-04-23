@@ -417,7 +417,7 @@ end
 @[simp] lemma cast_mod_nat (n : ℕ) (a : ℕ) : ((a % n : ℕ) : zmod n) = a :=
 by conv {to_rhs, rw ← nat.mod_add_div a n}; simp
 
-lemma eq_iff_modeq_nat {n : ℕ} {a b : ℕ} : (a : zmod n) = b ↔ a ≡ b [MOD n] :=
+lemma eq_iff_modeq_nat (n : ℕ) {a b : ℕ} : (a : zmod n) = b ↔ a ≡ b [MOD n] :=
 begin
   cases n,
   { simp only [nat.modeq, int.coe_nat_inj', nat.mod_zero, int.nat_cast_eq_coe_nat], },

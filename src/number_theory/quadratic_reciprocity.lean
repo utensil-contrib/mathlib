@@ -240,7 +240,7 @@ private lemma eisenstein_lemma_aux₁ (p : ℕ) [hp : fact p.prime] [hp2 : fact 
       ((λ x : ℕ, p / 2 < (a * x : zmod p).val))).card +
       (Ico 1 (p / 2).succ).sum (λ x, x)
     + ((Ico 1 (p / 2).succ).sum (λ x, (a * x) / p) : ℕ) :=
-have hp2 : (p : zmod 2) = (1 : ℕ), from eq_iff_modeq_nat.2 hp2,
+have hp2 : (p : zmod 2) = (1 : ℕ), from (eq_iff_modeq_nat _).2 hp2,
 calc (((Ico 1 (p / 2).succ).sum (λ x, a * x) : ℕ) : zmod 2)
     = (((Ico 1 (p / 2).succ).sum (λ x, (a * x) % p + p * ((a * x) / p)) : ℕ) : zmod 2) :
   by simp only [mod_add_div]
@@ -269,8 +269,8 @@ private lemma eisenstein_lemma_aux₂ (p : ℕ) [hp : fact p.prime] [hp2 : fact 
   ((Ico 1 (p / 2).succ).filter
     ((λ x : ℕ, p / 2 < (a * x : zmod p).val))).card
   ≡ (Ico 1 (p / 2).succ).sum (λ x, (x * a) / p) [MOD 2] :=
-have ha2 : (a : zmod 2) = (1 : ℕ), from eq_iff_modeq_nat.2 ha2,
-(@eq_iff_modeq_nat 2 _ _).1 $ sub_eq_zero.1 $
+have ha2 : (a : zmod 2) = (1 : ℕ), from (eq_iff_modeq_nat _).2 ha2,
+(eq_iff_modeq_nat 2).1 $ sub_eq_zero.1 $
   by simpa [add_left_comm, sub_eq_add_neg, finset.mul_sum.symm, mul_comm, ha2, sum_nat_cast,
             add_neg_eq_iff_eq_add.symm, neg_eq_self_mod_two]
     using eq.symm (eisenstein_lemma_aux₁ p hap)
@@ -460,7 +460,7 @@ have hunion :
 begin
   rw [gauss_lemma p (prime_ne_zero p 2 hp2),
     neg_one_pow_eq_pow_mod_two, @neg_one_pow_eq_pow_mod_two _ _ (p / 4 + p / 2)],
-  refine congr_arg2 _ rfl ((@eq_iff_modeq_nat 2 _ _).1 _),
+  refine congr_arg2 _ rfl ((eq_iff_modeq_nat 2).1 _),
   rw [show 4 = 2 * 2, from rfl, ← nat.div_div_eq_div_mul, hp22, nat.cast_add,
     ← sub_eq_iff_eq_add', sub_eq_add_neg, neg_eq_self_mod_two,
     ← nat.cast_add, ← card_disjoint_union hdisj, hunion, hcard]
