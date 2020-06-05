@@ -46,6 +46,7 @@ variables {E : Type u} {F : Type v} {PE : Type ua} {PF : Type va}  {ι : Type w}
 
 open set
 open_locale classical
+noncomputable theory
 
 local notation `I` := (Icc 0 1 : set ℝ)
 
@@ -57,9 +58,24 @@ section sets
 
 variable (E)
 
+/-- The affine map from `ℝ` to `PE` sending `0` to `x` and `1` to `y`. -/
+noncomputable def line_map (x y : PE) : affine_map ℝ ℝ ℝ E PE :=
+{ to_fun := λ θ, θ • (y -ᵥ x : E) +ᵥ x,
+  linear := linear_map.id.smul_right (y -ᵥ x),
+  map_vadd' := λ p v, by simp [add_smul, add_action.vadd_assoc] }
+
+@[simp] lemma line_map_apply (x y : PE) (θ : ℝ) : line_map E x y θ = θ • (y -ᵥ x : E) +ᵥ x := rfl
+
+lemma line_map_swap (x y : PE) : ⇑(line_map E y x) = line_map E x y ∘ (λ θ, 1 - θ) :=
+begin
+  ext θ,
+  simp only [function.comp_app, line_map_apply, sub_smul, ← add_torsor.neg_vsub_eq_vsub_rev E y x,
+    one_smul, smul_neg, neg_sub],
+  rw [sub_eq_neg_add, ← add_action.vadd_assoc, add_torsor.vsub_vadd]
+end
+
 /-- Segments in an affine space -/
-def segment (x y : PE) : set PE :=
-(λ t : ℝ, t • (y -ᵥ x : E) +ᵥ x) '' I
+def segment (x y : PE) : set PE := line_map E x y '' I
 
 local notation `[`x `, ` y `][` E `]` := segment E x y
 
@@ -68,16 +84,9 @@ lemma segment_def (x y : PE) : [x, y][E] = (λ t : ℝ, t • (y -ᵥ x : E) +�
 lemma mem_segment_iff {x y z : PE} : z ∈ [x, y][E] ↔ ∃ t ∈ I, t • (y -ᵥ x : E) +ᵥ x = z :=
 mem_image_iff_bex
 
-lemma segment_subset_symm (x y : PE) : [x, y][E] ⊆ [y, x][E] :=
-begin
-  rintros _ ⟨t, ⟨ht0, ht1⟩, rfl⟩,
-  refine ⟨1 - t, ⟨sub_nonneg.2 ht1, sub_le_self _ ht0⟩, _⟩,
-  simp only [sub_smul, ← add_torsor.neg_vsub_eq_vsub_rev E x y, one_smul, smul_neg],
-  rw [sub_eq_neg_add, ← add_action.vadd_assoc, add_torsor.vsub_vadd]
-end
 
 lemma segment_symm (x y : PE) : [x, y][E] = [y, x][E] :=
-subset.antisymm (segment_subset_symm E x y) (segment_subset_symm E y x)
+by rw [segment, segment, line_map_swap, image_comp]
 
 lemma left_mem_segment (x y : PE) : x ∈ [x, y][E] :=
 ⟨0, left_mem_Icc.2 zero_le_one, by simp⟩
@@ -105,81 +114,61 @@ by cases le_total a b; [skip, rw segment_symm]; simp [segment_eq_Icc, *]
 lemma segment_eq_interval (a b : ℝ) : segment ℝ a b = interval a b :=
 segment_eq_Icc' _ _
 
-lemma mem_segment_translate (a : E) {x b c : PE} : a +ᵥ x ∈ [a +ᵥ b, a +ᵥ c][E] ↔ x ∈ [b, c][E] :=
+variable {E}
+
+lemma mem_segment_translate (a : E) {x b c : PE} :
+  a +ᵥ x ∈ [a +ᵥ b, a +ᵥ c][E] ↔ x ∈ [b, c][E] :=
 begin
   simp only [segment_def],
   refine exists_congr (λ θ, and_congr iff.rfl _),
-  simp only [add_sub_add_left_eq_sub, add_assoc, add_right_inj]
+  simp [add_action.vadd_comm _ _ _ a],
 end
 
-lemma segment_translate_preimage (a b c : E) : (λ x, a + x) ⁻¹' [a + b, a + c] = [b, c] :=
+lemma segment_translate_preimage (a : E) (b c : PE) :
+  (λ x, a +ᵥ x) ⁻¹' [a +ᵥ b, a +ᵥ c][E] = [b, c][E] :=
 set.ext $ λ x, mem_segment_translate a
 
-lemma segment_translate_image (a b c: E) : (λx, a + x) '' [b, c] = [a + b, a + c] :=
-segment_translate_preimage a b c ▸ image_preimage_eq $ add_left_surjective a
+lemma segment_translate_image (a : E) (b c : PE) :
+  (λx, a +ᵥ x) '' [b, c][E] = [a +ᵥ b, a +ᵥ c][E] :=
+segment_translate_preimage a b c ▸ image_preimage_eq $ (equiv.const_vadd PE a).surjective
+
+variable (E)
 
 /-! ### Convexity of sets -/
-/-- Convexity of sets -/
-def convex (s : set E) :=
-∀ ⦃x y : E⦄, x ∈ s → y ∈ s → ∀ ⦃a b : ℝ⦄, 0 ≤ a → 0 ≤ b → a + b = 1 →
-  a • x + b • y ∈ s
+/-- A set in an affine space is convex if `∀ x y ∈ s, [x, y] ⊆ s`. We give a longer definition
+to be able to apply `(hs : convex E s)` to `(hx : x ∈ s) (hy : y ∈ s) (h0 : 0 ≤ θ) (h1 : θ ≤ 1). -/
+def convex (s : set PE) :=
+∀ ⦃x⦄ (hx : x ∈ s) ⦃y⦄ (hy : y ∈ s) ⦃θ : ℝ⦄ (h0 : 0 ≤ θ) (h1 : θ ≤ 1), θ • (y -ᵥ x : E) +ᵥ x ∈ s
+
+variable {E}
 
 lemma convex_iff_forall_pos :
-  convex s ↔ ∀ ⦃x y⦄, x ∈ s → y ∈ s → ∀ ⦃a b : ℝ⦄, 0 < a → 0 < b → a + b = 1 → a • x + b • y ∈ s :=
+  convex E s ↔ ∀ ⦃x⦄ (hx : x ∈ s) ⦃y⦄ (hy : y ∈ s) ⦃θ : ℝ⦄ (h0 : 0 < θ) (h1 : θ < 1),
+    θ • (y -ᵥ x : E) +ᵥ x ∈ s :=
 begin
-  refine ⟨λ h x y hx hy a b ha hb hab, h hx hy (le_of_lt ha) (le_of_lt hb) hab, _⟩,
-  intros h x y hx hy a b ha hb hab,
-  cases eq_or_lt_of_le ha with ha ha,
-  { subst a, rw [zero_add] at hab, simp [hab, hy] },
-  cases eq_or_lt_of_le hb with hb hb,
-  { subst b, rw [add_zero] at hab, simp [hab, hx] },
-  exact h hx hy ha hb hab
+  refine ⟨λ h x hx y hy θ h0 h1, h hx hy (le_of_lt h0) (le_of_lt h1), λ h x hx y hy θ h0 h1, _⟩,
+  rcases eq_or_lt_of_le h0 with rfl|h0, { simpa using hx },
+  rcases eq_or_lt_of_le h1 with rfl|h1, { simpa using hy },
+  exact h hx hy h0 h1
 end
 
-lemma convex_iff_segment_subset : convex s ↔ ∀ ⦃x y⦄, x ∈ s → y ∈ s → [x, y] ⊆ s :=
-by simp only [convex, segment_eq_image₂, subset_def, ball_image_iff, prod.forall,
-  mem_set_of_eq, and_imp]
+lemma convex_iff_segment_subset :
+  convex E s ↔ ∀ ⦃x⦄ (hx : x ∈ s) ⦃y⦄ (hy : y ∈ s), [x, y][E] ⊆ s :=
+by simp only [convex, segment_def, subset_def, ball_image_iff, mem_Icc, and_imp]
 
-lemma convex.segment_subset (h : convex s) {x y:E} (hx : x ∈ s) (hy : y ∈ s) : [x, y] ⊆ s :=
+lemma convex.segment_subset (h : convex E s) {x y : PE} (hx : x ∈ s) (hy : y ∈ s) :
+  [x, y][E] ⊆ s :=
 convex_iff_segment_subset.1 h hx hy
-
-/-- Alternative definition of set convexity, in terms of pointwise set operations. -/
-lemma convex_iff_pointwise_add_subset:
-  convex s ↔ ∀ ⦃a b : ℝ⦄, 0 ≤ a → 0 ≤ b → a + b = 1 → a • s + b • s ⊆ s :=
-iff.intro
-  begin
-    rintros hA a b ha hb hab w ⟨au, ⟨u, hu, rfl⟩, bv, ⟨v, hv, rfl⟩, rfl⟩,
-    exact hA hu hv ha hb hab
-  end
-  (λ h x y hx hy a b ha hb hab,
-    (h ha hb hab) (set.add_mem_pointwise_add ⟨_, hx, rfl⟩ ⟨_, hy, rfl⟩))
-
-/-- Alternative definition of set convexity, using division -/
-lemma convex_iff_div:
-  convex s ↔ ∀ ⦃x y : E⦄, x ∈ s → y ∈ s → ∀ ⦃a b : ℝ⦄,
-    0 ≤ a → 0 ≤ b → 0 < a + b → (a/(a+b)) • x + (b/(a+b)) • y ∈ s :=
-⟨begin
-  assume h x y hx hy a b ha hb hab,
-  apply h hx hy,
-  have ha', from mul_le_mul_of_nonneg_left ha (le_of_lt (inv_pos.2 hab)),
-  rwa [mul_zero, ←div_eq_inv_mul] at ha',
-  have hb', from mul_le_mul_of_nonneg_left hb (le_of_lt (inv_pos.2 hab)),
-  rwa [mul_zero, ←div_eq_inv_mul] at hb',
-  rw [←add_div],
-  exact div_self (ne_of_lt hab).symm
-end,
-begin
-  assume h x y hx hy a b ha hb hab,
-  have h', from h hx hy ha hb,
-  rw [hab, div_one, div_one] at h',
-  exact h' zero_lt_one
-end⟩
 
 /-! ### Examples of convex sets -/
 
-lemma convex_empty : convex (∅ : set E) :=  by finish
+variables (E PE)
 
-lemma convex_singleton (c : E) : convex ({c} : set E) :=
+lemma convex_empty : convex E (∅ : set PE) :=  by finish
+
+variables {PE}
+
+lemma convex_singleton (c : PE) : convex E ({c} : set PE) :=
 begin
   intros x y hx hy a b ha hb hab,
   rw [set.eq_of_mem_singleton hx, set.eq_of_mem_singleton hy, ←add_smul, hab, one_smul],

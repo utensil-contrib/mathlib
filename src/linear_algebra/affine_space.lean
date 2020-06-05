@@ -190,7 +190,7 @@ structure affine_map (k : Type*) (V1 : Type*) (P1 : Type*) (V2 : Type*) (P2 : Ty
     [add_comm_group V2] [module k V2] [affine_space k V2 P2] :=
 (to_fun : P1 → P2)
 (linear : linear_map k V1 V2)
-(map_vadd' : ∀ (p : P1) (v : V1), to_fun (v +ᵥ p) =  linear.to_fun v +ᵥ to_fun p)
+(map_vadd' : ∀ (p : P1) (v : V1), to_fun (v +ᵥ p) =  linear v +ᵥ to_fun p)
 
 namespace affine_map
 
@@ -233,7 +233,7 @@ begin
   congr',
   ext v,
   cases (add_torsor.nonempty V1 : nonempty P1) with p,
-  apply vadd_right_cancel V2 (f p),
+  apply vadd_right_cancel (f p),
   erw [← f_add, ← g_add]
 end
 
