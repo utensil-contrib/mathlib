@@ -3,7 +3,8 @@ Copyright (c) 2019 Alexander Bentkamp. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Alexander Bentkamp, Yury Kudriashov
 -/
-import data.set.intervals
+import data.set.intervals.unordered_interval
+import data.set.intervals.image_preimage
 import data.complex.module
 import algebra.pointwise
 import linear_algebra.affine_space
@@ -104,7 +105,7 @@ lemma segment_eq_Icc {a b : ℝ} (h : a ≤ b) : [a, b][ℝ] = Icc a b :=
 begin
   simp only [segment_def, vsub_eq_sub, vadd_eq_add, smul_eq_mul],
   show ((λ x, x + a) ∘ (λ t, t * (b - a))) '' I = Icc a b,
-  rw [image_comp, image_mul_right_Icc (@zero_le_one ℝ _) (sub_nonneg.2 h), image_add_right_Icc],
+  rw [image_comp, image_mul_right_Icc (@zero_le_one ℝ _) (sub_nonneg.2 h), image_add_const_Icc],
   simp
 end
 
