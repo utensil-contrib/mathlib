@@ -6,6 +6,7 @@ Authors: Alexander Bentkamp, Yury Kudriashov
 import data.set.intervals
 import data.complex.module
 import algebra.pointwise
+import linear_algebra.affine_space
 
 /-!
 # Convex sets and functions on real vector spaces
@@ -36,11 +37,12 @@ We use the following local notations:
 They are defined using `local notation`, so they are not available outside of this file.
 -/
 
-universes u' u v w x
+universes u' u v ua va w x
 
-variables {E : Type u} {F : Type v} {ι : Type w} {ι' : Type x}
+variables {E : Type u} {F : Type v} {PE : Type ua} {PF : Type va}  {ι : Type w} {ι' : Type x}
   [add_comm_group E] [vector_space ℝ E] [add_comm_group F] [vector_space ℝ F]
-  {s : set E}
+  [affine_space ℝ E PE] [affine_space ℝ F PF]
+  {s : set PE}
 
 open set
 open_locale classical
@@ -53,57 +55,59 @@ section sets
 
 /-! ### Segment -/
 
-/-- Segments in a vector space -/
-def segment (x y : E) : set E :=
-{z : E | ∃ (a b : ℝ) (ha : 0 ≤ a) (hb : 0 ≤ b) (hab : a + b = 1), a • x + b • y = z}
-local notation `[`x `, ` y `]` := segment x y
+variable (E)
 
-lemma segment_symm (x y : E) : [x, y] = [y, x] :=
-set.ext $ λ z,
-⟨λ ⟨a, b, ha, hb, hab, H⟩, ⟨b, a, hb, ha, (add_comm _ _).trans hab, (add_comm _ _).trans H⟩,
-  λ ⟨a, b, ha, hb, hab, H⟩, ⟨b, a, hb, ha, (add_comm _ _).trans hab, (add_comm _ _).trans H⟩⟩
+/-- Segments in an affine space -/
+def segment (x y : PE) : set PE :=
+(λ t : ℝ, t • (y -ᵥ x : E) +ᵥ x) '' I
 
-lemma left_mem_segment (x y : E) : x ∈ [x, y] :=
-⟨1, 0, zero_le_one, le_refl 0, add_zero 1, by rw [zero_smul, one_smul, add_zero]⟩
+local notation `[`x `, ` y `][` E `]` := segment E x y
 
-lemma right_mem_segment (x y : E) : y ∈ [x, y] :=
-segment_symm y x ▸ left_mem_segment y x
+lemma segment_def (x y : PE) : [x, y][E] = (λ t : ℝ, t • (y -ᵥ x : E) +ᵥ x) '' I := rfl
 
-lemma segment_same (x : E) : [x, x] = {x} :=
-set.ext $ λ z, ⟨λ ⟨a, b, ha, hb, hab, hz⟩,
-  by simpa only [(add_smul _ _ _).symm, mem_singleton_iff, hab, one_smul, eq_comm] using hz,
-  λ h, mem_singleton_iff.1 h ▸ left_mem_segment z z⟩
+lemma mem_segment_iff {x y z : PE} : z ∈ [x, y][E] ↔ ∃ t ∈ I, t • (y -ᵥ x : E) +ᵥ x = z :=
+mem_image_iff_bex
 
-lemma segment_eq_image (x y : E) : segment x y = (λ (θ : ℝ), (1 - θ) • x + θ • y) '' I :=
-set.ext $ λ z,
-  ⟨λ ⟨a, b, ha, hb, hab, hz⟩,
-    ⟨b, ⟨hb, hab ▸ le_add_of_nonneg_left ha⟩, hab ▸ hz ▸ by simp only [add_sub_cancel]⟩,
-    λ ⟨θ, ⟨hθ₀, hθ₁⟩, hz⟩, ⟨1-θ, θ, sub_nonneg.2 hθ₁, hθ₀, sub_add_cancel _ _, hz⟩⟩
-
-lemma segment_eq_image' (x y : E) : segment x y = (λ (θ : ℝ), x + θ • (y - x)) '' I :=
-by { convert segment_eq_image x y, ext θ, simp only [smul_sub, sub_smul, one_smul], abel }
-
-lemma segment_eq_image₂ (x y : E) :
-  segment x y = (λ p:ℝ×ℝ, p.1 • x + p.2 • y) '' {p | 0 ≤ p.1 ∧ 0 ≤ p.2 ∧ p.1 + p.2 = 1} :=
-by simp only [segment, image, prod.exists, mem_set_of_eq, exists_prop, and_assoc]
-
-lemma segment_eq_Icc {a b : ℝ} (h : a ≤ b) : [a, b] = Icc a b :=
+lemma segment_subset_symm (x y : PE) : [x, y][E] ⊆ [y, x][E] :=
 begin
-  rw [segment_eq_image'],
-  show (((+) a) ∘ (λ t, t * (b - a))) '' Icc 0 1 = Icc a b,
-  rw [image_comp, image_mul_right_Icc (@zero_le_one ℝ _) (sub_nonneg.2 h), image_add_left_Icc],
+  rintros _ ⟨t, ⟨ht0, ht1⟩, rfl⟩,
+  refine ⟨1 - t, ⟨sub_nonneg.2 ht1, sub_le_self _ ht0⟩, _⟩,
+  simp only [sub_smul, ← add_torsor.neg_vsub_eq_vsub_rev E x y, one_smul, smul_neg],
+  rw [sub_eq_neg_add, ← add_action.vadd_assoc, add_torsor.vsub_vadd]
+end
+
+lemma segment_symm (x y : PE) : [x, y][E] = [y, x][E] :=
+subset.antisymm (segment_subset_symm E x y) (segment_subset_symm E y x)
+
+lemma left_mem_segment (x y : PE) : x ∈ [x, y][E] :=
+⟨0, left_mem_Icc.2 zero_le_one, by simp⟩
+
+lemma right_mem_segment (x y : PE) : y ∈ [x, y][E] :=
+segment_symm E y x ▸ left_mem_segment E y x
+
+lemma segment_same (x : PE) : [x, x][E] = {x} :=
+set.ext $ λ z, ⟨λ ⟨t, ht, htx⟩,
+  by simpa only [add_torsor.vsub_self, smul_zero, add_action.zero_vadd, mem_singleton_iff, eq_comm]
+    using htx,
+  λ h, mem_singleton_iff.1 h ▸ left_mem_segment E z z⟩
+
+lemma segment_eq_Icc {a b : ℝ} (h : a ≤ b) : [a, b][ℝ] = Icc a b :=
+begin
+  simp only [segment_def, vsub_eq_sub, vadd_eq_add, smul_eq_mul],
+  show ((λ x, x + a) ∘ (λ t, t * (b - a))) '' I = Icc a b,
+  rw [image_comp, image_mul_right_Icc (@zero_le_one ℝ _) (sub_nonneg.2 h), image_add_right_Icc],
   simp
 end
 
-lemma segment_eq_Icc' (a b : ℝ) : [a, b] = Icc (min a b) (max a b) :=
+lemma segment_eq_Icc' (a b : ℝ) : [a, b][ℝ] = Icc (min a b) (max a b) :=
 by cases le_total a b; [skip, rw segment_symm]; simp [segment_eq_Icc, *]
 
-lemma segment_eq_interval (a b : ℝ) : segment a b = interval a b :=
+lemma segment_eq_interval (a b : ℝ) : segment ℝ a b = interval a b :=
 segment_eq_Icc' _ _
 
-lemma mem_segment_translate (a : E) {x b c} : a + x ∈ [a + b, a + c] ↔ x ∈ [b, c] :=
+lemma mem_segment_translate (a : E) {x b c : PE} : a +ᵥ x ∈ [a +ᵥ b, a +ᵥ c][E] ↔ x ∈ [b, c][E] :=
 begin
-  rw [segment_eq_image', segment_eq_image'],
+  simp only [segment_def],
   refine exists_congr (λ θ, and_congr iff.rfl _),
   simp only [add_sub_add_left_eq_sub, add_assoc, add_right_inj]
 end
