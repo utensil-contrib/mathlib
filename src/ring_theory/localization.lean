@@ -624,6 +624,15 @@ iff.rfl
 
 @[simp] lemma lin_coe_apply {x} : f.lin_coe x = f.to_map x := rfl
 
+variables {g : R →+* P}
+variables {T : submonoid P} (hy : ∀ y : M, g y ∈ T) {Q : Type*} [comm_ring Q]
+(k : localization_map T Q)
+
+lemma map_smul (x : f.codomain) (z : R) :
+  f.map hy k (z • x : f.codomain) = @has_scalar.smul P k.codomain _ (g z) (f.map hy k x) :=
+show f.map hy k (f.to_map z * x) = k.to_map (g z) * f.map hy k x,
+by rw [ring_hom.map_mul, map_eq]
+
 end localization_map
 variables (R)
 
