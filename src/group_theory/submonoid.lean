@@ -780,6 +780,38 @@ lemma mem_sup {s t : submonoid N} {x : N} :
 by simp only [sup_eq_range, mem_mrange, coprod_apply, prod.exists, submonoid.exists,
   coe_subtype, subtype.coe_mk]
 
+section powers
+
+/-- The set of natural number powers `1, x, x², ...` of an element `x` of a monoid. -/
+def powers (x : M) : submonoid M :=
+{ carrier := {y | ∃ n:ℕ, x^n = y},
+  one_mem' := ⟨0, pow_zero _⟩,
+  mul_mem' := λ _ _ ⟨n₁, h₁⟩ ⟨n₂, h₂⟩, ⟨n₁ + n₂, by simp only [pow_add, *]⟩ }
+
+/-- The set of natural number multiples `0, x, 2x, ...` of an element `x` of an `add_monoid`. -/
+def multiples (x : A) : add_submonoid A :=
+{ carrier := {y | ∃ n:ℕ, n •ℕ x = y},
+  zero_mem' := ⟨0, zero_nsmul _⟩,
+  add_mem' := λ _ _, (@powers (multiplicative A) _ x).mul_mem }
+
+/-- An element of a monoid is in the set of that element's natural number powers. -/
+lemma powers.self_mem {x : M} : x ∈ powers x := ⟨1, pow_one _⟩
+
+/-- An element of an `add_monoid` is in the set of that element's natural number multiples. -/
+lemma multiples.self_mem {x : A} : x ∈ multiples x := ⟨1, one_nsmul _⟩
+
+/-- The set of natural number powers of an element of a submonoid is a subset of the submonoid. -/
+lemma submonoid.power_le (s : submonoid M) {a : M} (h : a ∈ s) : powers a ≤ s :=
+assume x ⟨n, hx⟩, hx ▸ s.pow_mem h _
+
+/-- The set of natural number multiples of an element of an `add_submonoid` is a subset of the
+    `add_submonoid`. -/
+lemma is_add_submonoid.multiple_subset (t : add_submonoid A) {a : A} :
+  a ∈ t → multiples a ≤ t :=
+submonoid.power_le t.to_submonoid
+
+end powers
+
 end submonoid
 
 namespace add_submonoid

@@ -119,8 +119,8 @@ namespace tensor_product
 section
 open free_abelian_group
 variables (R)
-def relators : set (free_abelian_group (M × N)) :=
-add_group.closure { x : free_abelian_group (M × N) |
+def relators : add_subgroup (free_abelian_group (M × N)) :=
+add_subgroup.closure { x : free_abelian_group (M × N) |
   (∃ (m₁ m₂ : M) (n : N), x = of (m₁, n) + of (m₂, n) - of (m₁ + m₂, n)) ∨
   (∃ (m : M) (n₁ n₂ : N), x = of (m, n₁) + of (m, n₂) - of (m, n₁ + n₂)) ∨
   (∃ (r : R) (m : M) (n : N), x = of (r • m, n) - of (m, r • n)) }
@@ -128,8 +128,8 @@ end
 
 namespace relators
 
-instance : normal_add_subgroup (relators R M N) :=
-by unfold relators; apply normal_add_subgroup_of_add_comm_group
+instance normal : add_subgroup.normal (relators R M N) :=
+(relators _ _ _).normal_of_comm
 
 end relators
 
@@ -147,15 +147,15 @@ namespace tensor_product
 
 section module
 
-local attribute [instance] quotient_add_group.left_rel normal_add_subgroup.to_is_add_subgroup
+/-- The relation whose quotient is the `tensor_product`. -/
+def relators_left_rel : setoid (free_abelian_group (M × N)) :=
+quotient_add_group.left_rel (relators R M N)
+
+local attribute [instance] relators_left_rel
 
 instance : add_comm_group (M ⊗[R] N) := quotient_add_group.add_comm_group _
 
 instance : inhabited (M ⊗[R] N) := ⟨0⟩
-
-instance quotient.mk.is_add_group_hom :
-  is_add_group_hom (quotient.mk : free_abelian_group (M × N) → M ⊗ N) :=
-quotient_add_group.is_add_group_hom _
 
 variables (R) {M N}
 def tmul (m : M) (n : N) : M ⊗[R] N := quotient_add_group.mk $ free_abelian_group.of (m, n)
@@ -166,34 +166,32 @@ notation x ` ⊗ₜ[`:100 R `] ` y := tmul R x y
 
 lemma add_tmul (m₁ m₂ : M) (n : N) : (m₁ + m₂) ⊗ₜ n = m₁ ⊗ₜ n + m₂ ⊗ₜ[R] n :=
 eq.symm $ sub_eq_zero.1 $ eq.symm $ quotient.sound $
-  add_group.in_closure.basic $ or.inl $ ⟨m₁, m₂, n, rfl⟩
+  add_subgroup.subset_closure $ or.inl $ ⟨m₁, m₂, n, rfl⟩
 
 lemma tmul_add (m : M) (n₁ n₂ : N) : m ⊗ₜ (n₁ + n₂) = m ⊗ₜ n₁ + m ⊗ₜ[R] n₂ :=
 eq.symm $ sub_eq_zero.1 $ eq.symm $ quotient.sound $
-  add_group.in_closure.basic $ or.inr $ or.inl $ ⟨m, n₁, n₂, rfl⟩
+  add_subgroup.subset_closure $ or.inr $ or.inl $ ⟨m, n₁, n₂, rfl⟩
 
 lemma smul_tmul (r : R) (m : M) (n : N) : (r • m) ⊗ₜ n = m ⊗ₜ[R] (r • n) :=
 sub_eq_zero.1 $ eq.symm $ quotient.sound $
-  add_group.in_closure.basic $ or.inr $ or.inr $ ⟨r, m, n, rfl⟩
+  add_subgroup.subset_closure $ or.inr $ or.inr $ ⟨r, m, n, rfl⟩
 
-local attribute [instance] quotient_add_group.is_add_group_hom_quotient_lift
+def smul.aux (r : R) : free_abelian_group (M × N) →+ M ⊗[R] N :=
+@free_abelian_group.lift _ _ (tensor_product.add_comm_group M N) (λ (y : M × N), (r • y.1) ⊗ₜ y.2)
 
-def smul.aux (r : R) : free_abelian_group (M × N) → M ⊗[R] N :=
-free_abelian_group.lift (λ (y : M × N), (r • y.1) ⊗ₜ y.2)
+def smul (r : R) : M ⊗[R] N →+ M ⊗[R] N :=
+quotient_add_group.lift _ (smul.aux r) $ λ x (hx : x ∈ relators R M N), begin
+  apply (is_add_group_hom.mem_ker (smul.aux r : _ → M ⊗ N)).mp,
+  refine ((smul.aux r).ker).closure_le.mpr _ hx,
+  clear hx x,
+  rintros x (⟨m₁, m₂, n, rfl⟩ | ⟨m, n₁, n₂, rfl⟩ | ⟨r, m, n, rfl⟩);
+    apply add_monoid_hom.mem_ker.mpr;
+    simp only [smul.aux, sub_self, add_tmul, tmul_add, smul_tmul, smul_add,
+      smul_smul, mul_comm, free_abelian_group.lift.of,
+      free_abelian_group.lift.add, free_abelian_group.lift.sub]
+end
 
-instance (r : R) : is_add_group_hom (smul.aux r : _ → M ⊗ N) :=
-by unfold smul.aux; apply_instance
-
-instance : has_scalar R (M ⊗ N) :=
-⟨λ r, quotient_add_group.lift _ (smul.aux r) $ λ x hx, begin
-  refine (is_add_group_hom.mem_ker (smul.aux r : _ → M ⊗ N)).1
-    (add_group.closure_subset _ hx),
-  clear hx x, rintro x (⟨m₁, m₂, n, rfl⟩ | ⟨m, n₁, n₂, rfl⟩ | ⟨q, m, n, rfl⟩);
-  simp only [smul.aux, is_add_group_hom.mem_ker, -sub_eq_add_neg,
-    sub_self, add_tmul, tmul_add, smul_tmul,
-    smul_add, smul_smul, mul_comm, free_abelian_group.lift.of,
-    free_abelian_group.lift.add, free_abelian_group.lift.sub]
-end⟩
+instance : has_scalar R (M ⊗[R] N) := ⟨λ r x, smul r x⟩
 
 instance smul.is_add_group_hom (r : R) : is_add_group_hom ((•) r : M ⊗[R] N → M ⊗[R] N) :=
 by unfold has_scalar.smul; apply_instance
@@ -210,8 +208,7 @@ instance : semimodule R (M ⊗ N) := semimodule.of_core
       apply quotient_add_group.induction_on' x,
       intro z,
       symmetry,
-      refine @free_abelian_group.lift.unique _ _ _ _ _ (is_add_group_hom.mk' $ λ p q, _) _ z,
-      { simp [tensor_product.smul_add, add_comm, add_left_comm] },
+      refine @free_abelian_group.lift.unique _ _ _ _ (smul.aux r + smul.aux s) _ z,
       rintro ⟨m, n⟩,
       change (r • m) ⊗ₜ n + (s • m) ⊗ₜ n = ((r + s) • m) ⊗ₜ n,
       rw [add_smul, add_tmul]
@@ -221,16 +218,16 @@ instance : semimodule R (M ⊗ N) := semimodule.of_core
       apply quotient_add_group.induction_on' x,
       intro z,
       symmetry,
-      refine @free_abelian_group.lift.unique _ _ _ _ _
-        (is_add_group_hom.mk' $ λ p q, _) _ z,
-      { simp [tensor_product.smul_add] },
+      refine @free_abelian_group.lift.unique _ _ _ _ ((smul r).comp (smul.aux s)) _ z,
       rintro ⟨m, n⟩,
-      change r • s • (m ⊗ₜ n) = ((r * s) • m) ⊗ₜ n,
+      change _ = ((r * s) • m) ⊗ₜ n,
       rw mul_smul, refl
     end,
-  one_smul := λ x, quotient.induction_on x $ λ _,
-    eq.symm $ free_abelian_group.lift.unique _ _ $ λ ⟨p, q⟩,
-    by rw one_smul; refl }
+    one_smul := λ x, quotient_add_group.induction_on' x $ λ z, eq.symm $ begin
+      refine @free_abelian_group.lift.unique _ (M ⊗[R] N) _ _ (quotient_add_group.mk_hom _) _ z,
+      rintro ⟨m, n⟩,
+      rw one_smul, refl
+    end }
 
 @[simp] lemma tmul_smul (r : R) (x : M) (y : N) : x ⊗ₜ (r • y) = r • (x ⊗ₜ[R] y) :=
 (smul_tmul _ _ _).symm
@@ -249,7 +246,7 @@ lemma tmul_neg (m : M) (n : N) : m ⊗ₜ (-n) = -(m ⊗ₜ[R] n) := (mk R M N _
 
 end module
 
-local attribute [instance] quotient_add_group.left_rel normal_add_subgroup.to_is_add_subgroup
+local attribute [instance] relators_left_rel
 
 @[elab_as_eliminator]
 protected theorem induction_on
@@ -268,16 +265,15 @@ section UMP
 variables {M N P Q}
 variables (f : M →ₗ[R] N →ₗ[R] P)
 
-local attribute [instance] free_abelian_group.lift.is_add_group_hom
-
 def lift_aux : (M ⊗[R] N) → P :=
-quotient_add_group.lift _
-  (free_abelian_group.lift $ λ z, f z.1 z.2) $ λ x hx,
+quotient_add_group.lift (relators R M N)
+  (free_abelian_group.lift $ λ (z : M × N), f z.1 z.2) $ λ x hx,
 begin
-  refine (is_add_group_hom.mem_ker _).1 (add_group.closure_subset _ hx),
-  clear hx x, rintro x (⟨m₁, m₂, n, rfl⟩ | ⟨m, n₁, n₂, rfl⟩ | ⟨q, m, n, rfl⟩);
-    simp [is_add_group_hom.mem_ker, -sub_eq_add_neg,
-      f.map_add, f.map_add₂, f.map_smul, f.map_smul₂, sub_self],
+  refine add_monoid_hom.mem_ker.mp ((add_monoid_hom.ker _).closure_le.mpr _ hx),
+  clear hx x,
+  rintro x (⟨m₁, m₂, n, rfl⟩ | ⟨m, n₁, n₂, rfl⟩ | ⟨q, m, n, rfl⟩);
+    apply add_monoid_hom.mem_ker.mpr;
+    simp [f.map_add, f.map_add₂, f.map_smul, f.map_smul₂, sub_self],
 end
 variable {f}
 
@@ -310,8 +306,10 @@ theorem lift.unique {g : (M ⊗[R] N) →ₗ[R] P} (H : ∀ x y, g (x ⊗ₜ y) 
 linear_map.ext $ λ z, begin
   apply quotient_add_group.induction_on' z,
   intro z,
-  refine @free_abelian_group.lift.unique _ _ _ _ _ (is_add_group_hom.mk' $ λ p q, _) _ z,
-  { simp [g.2] },
+  refine @free_abelian_group.lift.unique _ _ _ _
+    (g.to_add_monoid_hom.comp (quotient_add_group.mk_hom _))
+    _
+    z,
   exact λ ⟨m, n⟩, H m n
 end
 
