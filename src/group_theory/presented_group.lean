@@ -40,15 +40,16 @@ local notation `F` := free_group.to_group f
 variable (h : ∀ r ∈ rels, F r = 1)
 
 lemma closure_rels_subset_ker : subgroup.normal_closure rels ≤ monoid_hom.ker F :=
-group.normal_closure_subset (λ x w, monoid_hom.mem_ker.2 (h x w))
+(subgroup.normal_closure_subset_iff (subgroup.normal_comap _)).mp
+  (λ x w, monoid_hom.mem_ker.2 (h x w))
 
-lemma to_group_eq_one_of_mem_closure : ∀ x ∈ group.normal_closure rels, F x = 1 :=
+lemma to_group_eq_one_of_mem_closure : ∀ x ∈ subgroup.normal_closure rels, F x = 1 :=
 λ x w, monoid_hom.mem_ker.1  ((closure_rels_subset_ker h) w)
 
 /-- The extension of a map f : α → β that satisfies the given relations to a group homomorphism
 from presented_group rels → β. -/
 def to_group : presented_group rels →* β :=
-quotient_group.lift (group.normal_closure rels) F (to_group_eq_one_of_mem_closure h)
+quotient_group.lift (subgroup.normal_closure rels) F (to_group_eq_one_of_mem_closure h)
 
 @[simp] lemma to_group.of {x : α} : to_group h (of x) = f x := free_group.to_group.of
 
