@@ -13,7 +13,7 @@ variables {α : Type}
 /-- Given a set of relations, rels, over a type α, presented_group constructs the group with
 generators α and relations rels as a quotient of free_group α.-/
 def presented_group (rels : set (free_group α)) : Type :=
-quotient_group.quotient $ group.normal_closure rels
+quotient_group.quotient $ subgroup.normal_closure rels
 
 namespace presented_group
 
@@ -39,7 +39,7 @@ local notation `F` := free_group.to_group f
 
 variable (h : ∀ r ∈ rels, F r = 1)
 
-lemma closure_rels_subset_ker : group.normal_closure rels ≤ monoid_hom.ker F :=
+lemma closure_rels_subset_ker : subgroup.normal_closure rels ≤ monoid_hom.ker F :=
 group.normal_closure_subset (λ x w, monoid_hom.mem_ker.2 (h x w))
 
 lemma to_group_eq_one_of_mem_closure : ∀ x ∈ group.normal_closure rels, F x = 1 :=
