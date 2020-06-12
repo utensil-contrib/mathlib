@@ -17,7 +17,7 @@ def commutator : subgroup α :=
 subgroup.normal_closure {x | ∃ p q, p * q * p⁻¹ * q⁻¹ = x}
 
 instance normal_commutator : (commutator α).normal :=
-subgroup.normal_closure.is_normal
+subgroup.normal_closure_normal
 
 def abelianization : Type u :=
 quotient_group.quotient $ commutator α
