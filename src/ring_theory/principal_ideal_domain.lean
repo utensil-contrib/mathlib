@@ -52,11 +52,11 @@ by rw [← @span_singleton_eq_bot R M, span_singleton_generator]
 
 end submodule.is_principal
 
-namespace is_prime
+namespace ideal.is_prime
 open submodule.is_principal ideal
 
 lemma to_maximal_ideal [principal_ideal_domain R] {S : ideal R}
-  [hpi : is_prime S] (hS : S ≠ ⊥) : is_maximal S :=
+  (hpi : is_prime S) (hS : S ≠ ⊥) : is_maximal S :=
 is_maximal_iff.2 ⟨(ne_top_iff_one S).1 hpi.1, begin
   assume T x hST hxS hxT,
   haveI := principal_ideal_domain.principal S,
@@ -71,7 +71,7 @@ is_maximal_iff.2 ⟨(ne_top_iff_one S).1 hpi.1, begin
   exact hz.symm ▸ ideal.mul_mem_right _ (generator_mem T)
 end⟩
 
-end is_prime
+end ideal.is_prime
 
 section
 open euclidean_domain
