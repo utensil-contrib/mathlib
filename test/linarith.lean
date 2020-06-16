@@ -1,5 +1,6 @@
 import tactic.linarith
 
+<<<<<<< HEAD
 example {α : Type} (_inst : Π (a : Prop), decidable a)
   [linear_ordered_field α]
   {a b c : α}
@@ -15,6 +16,8 @@ begin
   linarith
 end
 
+=======
+>>>>>>> linarith-redundancies
 example (e b c a v0 v1 : ℚ) (h1 : v0 = 5*a) (h2 : v1 = 3*b) (h3 : v0 + v1 + c = 10) :
   v0 + 5 + (v1 - 3) + (c - 2) = 10 :=
 by linarith
