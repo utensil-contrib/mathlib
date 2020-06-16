@@ -242,7 +242,7 @@ def comp_source.to_string : comp_source → string
 | (comp_source.add c1 c2) := comp_source.to_string c1 ++ " + " ++ comp_source.to_string c2
 | (comp_source.scale n c) := to_string n ++ " * " ++ comp_source.to_string c
 
-instance comp_source.has_to_format : has_to_format comp_source :=
+meta instance comp_source.has_to_format : has_to_format comp_source :=
 ⟨λ a, comp_source.to_string a⟩
 
 /--
