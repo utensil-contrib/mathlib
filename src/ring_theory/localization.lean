@@ -195,7 +195,6 @@ lemma exists_integer_multiple (a : S) :
   ∃ (b : M), is_integer f (f.to_map b * a) :=
 by { simp_rw mul_comm _ a, apply exists_integer_multiple' }
 
-
 /-- Given `z : S`, `f.to_localization_map.sec z` is defined to be a pair `(x, y) : R × M` such
 that `z * f y = f x` (so this lemma is true by definition). -/
 lemma sec_spec {f : localization_map M S} (z : S) :
@@ -207,6 +206,30 @@ that `z * f y = f x`, so this lemma is just an application of `S`'s commutativit
 lemma sec_spec' {f : localization_map M S} (z : S) :
   f.to_map (f.to_localization_map.sec z).1 = f.to_map (f.to_localization_map.sec z).2 * z :=
 by rw [mul_comm, sec_spec]
+
+open_locale big_operators
+
+@[simp] lemma finset.insert_self_sdiff_singleton [decidable_eq S] (s : finset S) {a : S} (ha : a ∈ s) :
+  insert a (s \ {a}) = s :=
+finset.ext (λ x, iff.trans finset.mem_insert
+  ⟨ λ h, or.elim h (λ h, h.symm ▸ ha) (λ h, finset.sdiff_subset _ _ h),
+    λ h, if hx : x = a then or.inl hx else or.inr (finset.mem_sdiff.mpr ⟨h, finset.not_mem_singleton.mpr hx⟩) ⟩)
+
+/-- We can clear the denominators of a finite set of fractions. -/
+lemma exist_integer_multiples_of_finset (s : finset S) :
+  ∃ (b : M), ∀ a ∈ s, is_integer f (f.to_map b * a) :=
+begin
+  haveI := classical.prop_decidable,
+  use ∏ a in s, (f.to_localization_map.sec a).2,
+  intros a ha,
+  use (∏ x in s \ {a}, (f.to_localization_map.sec x).2) * (f.to_localization_map.sec a).1,
+  rw [ring_hom.map_mul, sec_spec', ←mul_assoc, ←f.to_map.map_mul],
+  congr' 2,
+  refine trans _ ((submonoid.subtype M).map_prod _ _).symm,
+  rw [mul_comm, ←finset.prod_insert (finset.not_mem_sdiff_of_mem_right (finset.mem_singleton_self a)),
+      finset.insert_self_sdiff_singleton _ ha],
+  refl,
+end
 
 lemma map_right_cancel {x y} {c : M} (h : f.to_map (c * x) = f.to_map (c * y)) :
   f.to_map x = f.to_map y :=
