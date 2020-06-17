@@ -22,56 +22,14 @@ section
 @le_antisymm _ _
 end
 
-/- TODO: automatic construction of dual definitions / theorems -/
-reserve infixl ` ⊓ `:70
-reserve infixl ` ⊔ `:65
-
-/-- Typeclass for the `⊔` (`\lub`) notation -/
-class has_sup (α : Type u) := (sup : α → α → α)
-/-- Typeclass for the `⊓` (`\glb`) notation -/
-class has_inf (α : Type u) := (inf : α → α → α)
-
-infix ⊔ := has_sup.sup
-infix ⊓ := has_inf.inf
-
-section prio
-set_option default_priority 100 -- see Note [default priority]
-/-- A `semilattice_sup` is a join-semilattice, that is, a partial order
-  with a join (a.k.a. lub / least upper bound, sup / supremum) operation
-  `⊔` which is the least element larger than both factors. -/
-class semilattice_sup (α : Type u) extends has_sup α, partial_order α :=
-(le_sup_left : ∀ a b : α, a ≤ a ⊔ b)
-(le_sup_right : ∀ a b : α, b ≤ a ⊔ b)
-(sup_le : ∀ a b c : α, a ≤ c → b ≤ c → a ⊔ b ≤ c)
-end prio
-
 section semilattice_sup
 variables [semilattice_sup α] {a b c d : α}
-
-@[simp] theorem le_sup_left : a ≤ a ⊔ b :=
-semilattice_sup.le_sup_left a b
-
-@[ematch] theorem le_sup_left' : a ≤ (: a ⊔ b :) :=
-le_sup_left
-
-@[simp] theorem le_sup_right : b ≤ a ⊔ b :=
-semilattice_sup.le_sup_right a b
-
-@[ematch] theorem le_sup_right' : b ≤ (: a ⊔ b :) :=
-le_sup_right
 
 theorem le_sup_left_of_le (h : c ≤ a) : c ≤ a ⊔ b :=
 le_trans h le_sup_left
 
 theorem le_sup_right_of_le (h : c ≤ b) : c ≤ a ⊔ b :=
 le_trans h le_sup_right
-
-theorem sup_le : a ≤ c → b ≤ c → a ⊔ b ≤ c :=
-semilattice_sup.sup_le a b c
-
-@[simp] theorem sup_le_iff : a ⊔ b ≤ c ↔ a ≤ c ∧ b ≤ c :=
-⟨assume h : a ⊔ b ≤ c, ⟨le_trans le_sup_left h, le_trans le_sup_right h⟩,
-  assume ⟨h₁, h₂⟩, sup_le h₁ h₂⟩
 
 @[simp] theorem sup_eq_left : a ⊔ b = a ↔ b ≤ a :=
 le_antisymm_iff.trans $ by simp [le_refl]

@@ -4,6 +4,7 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Jeremy Avigad, Mario Carneiro
 -/
 import data.set.basic
+import order.classes
 open function
 
 /-!
@@ -189,57 +190,6 @@ end
 
 end
 
-/-- Type tag for a set with dual order: `≤` means `≥` and `<` means `>`. -/
-def order_dual (α : Type*) := α
-
-namespace order_dual
-instance (α : Type*) [h : nonempty α] : nonempty (order_dual α) := h
-instance (α : Type*) [has_le α] : has_le (order_dual α) := ⟨λx y:α, y ≤ x⟩
-instance (α : Type*) [has_lt α] : has_lt (order_dual α) := ⟨λx y:α, y < x⟩
-
--- `dual_le` and `dual_lt` should not be simp lemmas:
--- they cause a loop since `α` and `order_dual α` are definitionally equal
-
-lemma dual_le [has_le α] {a b : α} :
-  @has_le.le (order_dual α) _ a b ↔ @has_le.le α _ b a := iff.rfl
-
-lemma dual_lt [has_lt α] {a b : α} :
-  @has_lt.lt (order_dual α) _ a b ↔ @has_lt.lt α _ b a := iff.rfl
-
-instance (α : Type*) [preorder α] : preorder (order_dual α) :=
-{ le_refl  := le_refl,
-  le_trans := assume a b c hab hbc, le_trans hbc hab,
-  lt_iff_le_not_le := λ _ _, lt_iff_le_not_le,
-  .. order_dual.has_le α,
-  .. order_dual.has_lt α }
-
-instance (α : Type*) [partial_order α] : partial_order (order_dual α) :=
-{ le_antisymm := assume a b hab hba, @le_antisymm α _ a b hba hab, .. order_dual.preorder α }
-
-instance (α : Type*) [linear_order α] : linear_order (order_dual α) :=
-{ le_total := assume a b:α, le_total b a, .. order_dual.partial_order α }
-
-instance (α : Type*) [decidable_linear_order α] : decidable_linear_order (order_dual α) :=
-{ decidable_le := show decidable_rel (λa b:α, b ≤ a), by apply_instance,
-  decidable_lt := show decidable_rel (λa b:α, b < a), by apply_instance,
-  .. order_dual.linear_order α }
-
-instance : Π [inhabited α], inhabited (order_dual α) := id
-
-end order_dual
-
-/- order instances on the function space -/
-
-instance pi.preorder {ι : Type u} {α : ι → Type v} [∀i, preorder (α i)] : preorder (Πi, α i) :=
-{ le       := λx y, ∀i, x i ≤ y i,
-  le_refl  := assume a i, le_refl (a i),
-  le_trans := assume a b c h₁ h₂ i, le_trans (h₁ i) (h₂ i) }
-
-instance pi.partial_order {ι : Type u} {α : ι → Type v} [∀i, partial_order (α i)] :
-  partial_order (Πi, α i) :=
-{ le_antisymm := λf g h1 h2, funext (λb, le_antisymm (h1 b) (h2 b)),
-  ..pi.preorder }
-
 theorem comp_le_comp_left_of_monotone [preorder α] [preorder β]
   {f : β → α} {g h : γ → β} (m_f : monotone f) (le_gh : g ≤ h) :
   has_le.le.{max w u} (f ∘ g) (f ∘ h) :=
@@ -306,61 +256,6 @@ linear_order.lift subtype.val subtype.val_injective
 instance subtype.decidable_linear_order {α} [decidable_linear_order α] (p : α → Prop) :
   decidable_linear_order (subtype p) :=
 decidable_linear_order.lift subtype.val subtype.val_injective
-
-instance prod.has_le (α : Type u) (β : Type v) [has_le α] [has_le β] : has_le (α × β) :=
-⟨λp q, p.1 ≤ q.1 ∧ p.2 ≤ q.2⟩
-
-instance prod.preorder (α : Type u) (β : Type v) [preorder α] [preorder β] : preorder (α × β) :=
-{ le_refl  := assume ⟨a, b⟩, ⟨le_refl a, le_refl b⟩,
-  le_trans := assume ⟨a, b⟩ ⟨c, d⟩ ⟨e, f⟩ ⟨hac, hbd⟩ ⟨hce, hdf⟩,
-    ⟨le_trans hac hce, le_trans hbd hdf⟩,
-  .. prod.has_le α β }
-
-/-- The pointwise partial order on a product.
-    (The lexicographic ordering is defined in order/lexicographic.lean, and the instances are
-    available via the type synonym `lex α β = α × β`.) -/
-instance prod.partial_order (α : Type u) (β : Type v) [partial_order α] [partial_order β] :
-  partial_order (α × β) :=
-{ le_antisymm := assume ⟨a, b⟩ ⟨c, d⟩ ⟨hac, hbd⟩ ⟨hca, hdb⟩,
-    prod.ext (le_antisymm hac hca) (le_antisymm hbd hdb),
-  .. prod.preorder α β }
-
-/-!
-### Additional order classes
--/
-
-/-- order without a top element; somtimes called cofinal -/
-class no_top_order (α : Type u) [preorder α] : Prop :=
-(no_top : ∀a:α, ∃a', a < a')
-
-lemma no_top [preorder α] [no_top_order α] : ∀a:α, ∃a', a < a' :=
-no_top_order.no_top
-
-/-- order without a bottom element; somtimes called coinitial or dense -/
-class no_bot_order (α : Type u) [preorder α] : Prop :=
-(no_bot : ∀a:α, ∃a', a' < a)
-
-lemma no_bot [preorder α] [no_bot_order α] : ∀a:α, ∃a', a' < a :=
-no_bot_order.no_bot
-
-instance order_dual.no_top_order (α : Type u) [preorder α] [no_bot_order α] :
-  no_top_order (order_dual α) :=
-⟨λ a, @no_bot α _ _ a⟩
-
-instance order_dual.no_bot_order (α : Type u) [preorder α] [no_top_order α] :
-  no_bot_order (order_dual α) :=
-⟨λ a, @no_top α _ _ a⟩
-
-/-- An order is dense if there is an element between any pair of distinct elements. -/
-class densely_ordered (α : Type u) [preorder α] : Prop :=
-(dense : ∀a₁ a₂:α, a₁ < a₂ → ∃a, a₁ < a ∧ a < a₂)
-
-lemma dense [preorder α] [densely_ordered α] : ∀{a₁ a₂:α}, a₁ < a₂ → ∃a, a₁ < a ∧ a < a₂ :=
-densely_ordered.dense
-
-instance order_dual.densely_ordered (α : Type u) [preorder α] [densely_ordered α] :
-  densely_ordered (order_dual α) :=
-⟨λ a₁ a₂ ha, (@dense α _ _ _ _ ha).imp $ λ a, and.symm⟩
 
 lemma le_of_forall_le_of_dense [linear_order α] [densely_ordered α] {a₁ a₂ : α}
   (h : ∀a₃>a₂, a₁ ≤ a₃) :
@@ -434,11 +329,3 @@ theorem directed.mono_comp {ι} {rb : β → β → Prop} {g : α → β} {f : �
   (hg : ∀ ⦃x y⦄, x ≼ y → rb (g x) (g y)) (hf : directed r f) :
   directed rb (g ∘ f) :=
 (directed_comp rb f g).2 $ hf.mono hg
-
-section prio
-set_option default_priority 100 -- see Note [default priority]
-/-- A `preorder` is a `directed_order` if for any two elements `i`, `j`
-there is an element `k` such that `i ≤ k` and `j ≤ k`. -/
-class directed_order (α : Type u) extends preorder α :=
-(directed : ∀ i j : α, ∃ k, i ≤ k ∧ j ≤ k)
-end prio
